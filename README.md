@@ -8,7 +8,7 @@
 
 ~~⦁	Ao invés de levar em consideração peso/nível levar em consideração taxa de vitória~~
 
-⦁	Tirar do time com base no num de pessoas que estao desabilitadas, n pode tirar o que acabou de entrar
+~~⦁	Tirar do time com base no num de pessoas que estao desabilitadas, não pode tirar o que acabou de entrar~~
 
 ~~⦁	Editar nomes~~
 
