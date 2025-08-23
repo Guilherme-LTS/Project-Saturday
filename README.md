@@ -16,6 +16,8 @@
 
 ⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes
 
-⦁	Modificar o x de jogadores para desabilitar eles no dia e adicionar no lugar uma seta para habilitar todos os jogadores da lista de desabilitados
+~~⦁	Modificar o x de jogadores para desabilitar eles no dia e adicionar no lugar um + para habilitar todos os jogadores da lista de desabilitados~~
+
+⦁	Poder pesquisar nome com ou sem acento
 
 [Formatação](https://docs.github.com/pt/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
