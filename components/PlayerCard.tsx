@@ -47,13 +47,12 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
       onLongPress={() => onLongPress(player)}
     >
       <View style={[styles.contentContainer, variant === 'grid' && styles.contentContainerGrid]}>
-        {selectable && (
-          <Checkbox
-            style={styles.checkbox}
-            value={isSelected}
-            onValueChange={() => onSelect && onSelect(player.id)}
-            color={isSelected ? '#0a84ff' : (darkMode ? '#fff' : '#222')}
-          />
+        {variant === 'list' && (
+          <View style={[styles.weightContainer, { backgroundColor: darkMode ? '#555' : '#eee' }]}>
+            <Text style={[styles.weightText, { color: darkMode ? '#fff' : '#222' }]}>
+              {player.weight}
+            </Text>
+          </View>
         )}
         <Text
           style={[
@@ -65,13 +64,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         >
           {player.name}
         </Text>
-
-        {variant === 'list' && (
-          <View style={[styles.weightContainer, { backgroundColor: darkMode ? '#555' : '#eee' }]}>
-            <Text style={[styles.weightText, { color: darkMode ? '#fff' : '#222' }]}>
-              {player.weight}
-            </Text>
-          </View>
+        {selectable && (
+          <Checkbox
+            style={styles.checkbox}
+            value={isSelected}
+            onValueChange={() => onSelect && onSelect(player.id)}
+            color={isSelected ? '#0a84ff' : (darkMode ? '#fff' : '#222')}
+          />
         )}
       </View>
     </TouchableOpacity>
@@ -88,7 +87,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkbox: {
-    marginRight: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+    marginRight: 2,
   },
   playerName: {
     fontSize: 20,
@@ -114,7 +119,7 @@ const styles = StyleSheet.create({
   playerCardList: {
     width: '100%',
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     marginBottom: 8,
   },
   weightContainer: {
@@ -123,7 +128,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 2,
+    marginRight: 16,
   },
   weightText: {
     fontSize: 14,

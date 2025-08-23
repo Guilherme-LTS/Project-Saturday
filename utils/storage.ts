@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Player } from '../types';
+import { Match, Player } from '../types';
 
 const PLAYERS_STORAGE_KEY = '@VolleyballDraw:players';
 const THEME_STORAGE_KEY = '@VolleyballDraw:theme';
 const SELECTED_IDS_STORAGE_KEY = '@VolleyballDraw:selectedIds';
+const HISTORY_STORAGE_KEY = '@VolleyballDraw:history';
 
 // --- Funções de Jogadores ---
 export async function savePlayers(players: Player[]): Promise<void> {
@@ -74,5 +75,24 @@ export async function loadSelectedPlayerIds(): Promise<Set<string>> {
   } catch (e) {
     console.error("Erro ao carregar os IDs dos jogadores selecionados", e);
     return new Set();
+  }
+}
+
+export async function saveMatchHistory(history: Match[]): Promise<void> {
+  try {
+    const jsonValue = JSON.stringify(history);
+    await AsyncStorage.setItem(HISTORY_STORAGE_KEY, jsonValue);
+  } catch (e) {
+    console.error("Erro ao salvar o histórico de partidas", e);
+  }
+}
+
+export async function loadMatchHistory(): Promise<Match[]> {
+  try {
+    const jsonValue = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
+    return jsonValue != null ? JSON.parse(jsonValue) : [];
+  } catch (e) {
+    console.error("Erro ao carregar o histórico de partidas", e);
+    return [];
   }
 }

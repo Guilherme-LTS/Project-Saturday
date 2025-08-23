@@ -4,6 +4,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Screen } from '../types';
 
 import IconEdit from '../assets/icons/edit.svg';
+import IconList from '../assets/icons/history.svg';
 import IconUsers from '../assets/icons/players.svg';
 import IconSettings from '../assets/icons/settings.svg';
 import IconShuffle from '../assets/icons/shuffle.svg';
@@ -77,6 +78,14 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, dar
         IconComponent={IconUsers}
         screenName="players"
         isActive={activeScreen === 'players'}
+        onPress={onScreenChange}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <NavButton
+        IconComponent={IconList}
+        screenName="history"
+        isActive={activeScreen === 'history'}
         onPress={onScreenChange}
         activeColor={activeColor}
         inactiveColor={inactiveColor}
