@@ -1,63 +1,134 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { Player } from '../types'; // Descomente quando criarmos o arquivo de types
+// components/PlayerCard.tsx (versão com peso do jogador)
 
-// 1. Definindo as propriedades que o componente espera receber
+import Checkbox from 'expo-checkbox';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Player } from '../types';
+
 interface PlayerCardProps {
   player: Player;
   darkMode: boolean;
   onToggleActive: (id: string) => void;
   onLongPress: (player: Player) => void;
+  variant: 'grid' | 'list';
+  selectable?: boolean;
+  isSelected?: boolean;
+  onSelect?: (playerId: string) => void;
 }
 
-const cardMargin = 8; // Constante necessária para o estilo do card
+const PlayerCard: React.FC<PlayerCardProps> = ({
+  player,
+  darkMode,
+  onToggleActive,
+  onLongPress,
+  variant,
+  selectable,
+  isSelected,
+  onSelect,
+}) => {
+  
+  const handlePress = () => {
+    if (selectable && onSelect) {
+      onSelect(player.id);
+    } else {
+      onToggleActive(player.id);
+    }
+  };
 
-// 2. O componente em si, recebendo as props
-const PlayerCard: React.FC<PlayerCardProps> = ({ player, darkMode, onToggleActive, onLongPress }) => {
   return (
     <TouchableOpacity
       style={[
-        styles.playerCard,
+        styles.playerCardBase,
+        variant === 'grid' ? styles.playerCardGrid : styles.playerCardList,
         { backgroundColor: darkMode ? '#333' : '#fff' },
-        !player.active && { backgroundColor: darkMode ? '#141414ff' : '#f0f0f0' },
+        !player.active && !selectable && { backgroundColor: darkMode ? '#141414ff' : '#f0f0f0' },
       ]}
-      onPress={() => onToggleActive(player.id)}
+      onPress={handlePress}
       onLongPress={() => onLongPress(player)}
     >
-      <Text
-        style={[
-          styles.playerName,
-          { color: darkMode ? '#fff' : '#222' },
-          !player.active && styles.playerNameInactive,
-        ]}
-      >
-        {player.name}
-      </Text>
+      <View style={[styles.contentContainer, variant === 'grid' && styles.contentContainerGrid]}>
+        {selectable && (
+          <Checkbox
+            style={styles.checkbox}
+            value={isSelected}
+            onValueChange={() => onSelect && onSelect(player.id)}
+            color={isSelected ? '#0a84ff' : (darkMode ? '#fff' : '#222')}
+          />
+        )}
+        <Text
+          style={[
+            styles.playerName,
+            { color: darkMode ? '#fff' : '#222' },
+            !player.active && !selectable && styles.playerNameInactive,
+          ]}
+          numberOfLines={1} // Garante que nomes longos não quebrem a linha
+        >
+          {player.name}
+        </Text>
+
+        {variant === 'list' && (
+          <View style={[styles.weightContainer, { backgroundColor: darkMode ? '#555' : '#eee' }]}>
+            <Text style={[styles.weightText, { color: darkMode ? '#fff' : '#222' }]}>
+              {player.weight}
+            </Text>
+          </View>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
 
-// 3. Estilos que pertencem apenas a este componente
 const styles = StyleSheet.create({
-  playerCard: {
-    flex: 1,
+  playerCardBase: {
     borderRadius: 8,
-    padding: 16,
-    marginHorizontal: cardMargin / 2,
-    alignItems: 'center',
     justifyContent: 'center',
+  },
+  contentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    marginRight: 12,
   },
   playerName: {
     fontSize: 20,
     fontWeight: '600',
-    textAlign: 'center',
+    flex: 1,
   },
   playerNameInactive: {
     fontSize: 12,
     color: '#bbb',
     textDecorationLine: 'line-through',
   },
+  playerCardGrid: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+  },
+  contentContainerGrid: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'column',
+  },
+  playerCardList: {
+    width: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  weightContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  weightText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
 });
 
-// 4. Exportando o componente para que outros arquivos possam usá-lo
 export default PlayerCard;

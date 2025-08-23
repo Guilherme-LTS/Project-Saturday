@@ -1,43 +1,51 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 
-// Futuramente, moveremos este tipo para types/index.ts
-export type Screen = 'edit' | 'draw' | 'settings';
+import { Screen } from '../types';
+
+import IconEdit from '../assets/icons/edit.svg';
+import IconUsers from '../assets/icons/players.svg';
+import IconSettings from '../assets/icons/settings.svg';
+import IconShuffle from '../assets/icons/shuffle.svg';
 
 // 1. Definindo as props que o componente receberá
 interface BottomNavProps {
   activeScreen: Screen;
   onScreenChange: (screen: Screen) => void;
   darkMode: boolean;
+  bottomInset: number;
 }
 
-// Um componente interno para evitar repetição de código
+// 2. O NavButton agora recebe um IconComponent em vez de 'title'
 const NavButton = ({
-  title,
+  IconComponent,
   screenName,
   isActive,
   onPress,
-  textStyle,
+  activeColor,
+  inactiveColor,
 }: {
-  title: string;
+  IconComponent: React.FC<any>;
   screenName: Screen;
   isActive: boolean;
   onPress: (screen: Screen) => void;
-  textStyle: object;
+  activeColor: string;
+  inactiveColor: string;
 }) => (
-  <TouchableOpacity
-    style={[styles.navBtn]}
-    onPress={() => onPress(screenName)}
-  >
-    <Text style={[styles.navBtnText, textStyle, isActive && styles.navBtnTextActive]}>
-      {title}
-    </Text>
+  <TouchableOpacity style={styles.navBtn} onPress={() => onPress(screenName)}>
+    {/* 3. O ícone é renderizado aqui, e a cor é passada como prop */}
+    <IconComponent 
+      stroke={isActive ? activeColor : inactiveColor} 
+      width={26} 
+      height={26} 
+    />
   </TouchableOpacity>
 );
 
 
-const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, darkMode }) => {
-  const navTextStyle = { color: darkMode ? '#fff' : '#555' };
+const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, darkMode, bottomInset }) => {
+  const activeColor = '#0a84ff';
+  const inactiveColor = darkMode ? '#c5c5c5ff' : '#2b2b2bff';
 
   return (
     <View
@@ -50,25 +58,36 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, dar
       ]}
     >
       <NavButton
-        title="Editar lista"
+        IconComponent={IconEdit}
         screenName="edit"
         isActive={activeScreen === 'edit'}
         onPress={onScreenChange}
-        textStyle={navTextStyle}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
       />
       <NavButton
-        title="Sortear"
+        IconComponent={IconShuffle}
         screenName="draw"
         isActive={activeScreen === 'draw'}
         onPress={onScreenChange}
-        textStyle={navTextStyle}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
       />
       <NavButton
-        title="Configurações"
+        IconComponent={IconUsers}
+        screenName="players"
+        isActive={activeScreen === 'players'}
+        onPress={onScreenChange}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
+      />
+      <NavButton
+        IconComponent={IconSettings}
         screenName="settings"
         isActive={activeScreen === 'settings'}
         onPress={onScreenChange}
-        textStyle={navTextStyle}
+        activeColor={activeColor}
+        inactiveColor={inactiveColor}
       />
     </View>
   );
@@ -78,22 +97,14 @@ const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
     borderTopWidth: 1,
-    paddingTop: 4,
-    paddingBottom: 52,
+    paddingTop: 2,
+    paddingBottom: 2,
     justifyContent: 'space-around',
   },
   navBtn: {
     flex: 1,
     padding: 10,
     alignItems: 'center',
-  },
-  navBtnText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  navBtnTextActive: {
-    color: '#0a84ff',
-    fontWeight: 'bold' // A cor ativa sempre será a mesma
   },
 });
 

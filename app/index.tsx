@@ -22,24 +22,71 @@ import TeamCard from "../components/TeamCard";
 import TeamSizeSlider from '../components/TeamSizeSlider';
 import useTheme from "../hooks/useTheme";
 import { Player, Screen, Team, TeamSize } from "../types";
+import { loadPlayers, loadSelectedPlayerIds, loadTheme, savePlayers, saveSelectedPlayerIds, saveTheme } from '../utils/storage';
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("edit");
+  const [screen, setScreen] = useState<Screen>("players");
   const [rawInput, setRawInput] = useState("");
-  const [players, setPlayers] = useState<Player[]>([]);
   const [teamSize, setTeamSize] = useState<TeamSize>(6);
   const [teams, setTeams] = useState<Team[]>([]);
   const [leftoverPlayers, setLeftoverPlayers] = useState<string[]>([]);
-  const [showInput, setShowInput] = useState(true);
+  const [showInput, setShowInput] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]); // A "base de dados" de todos os jogadores
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set()); // IDs dos jogadores na partida atual
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // 2. Usando nosso hook de tema
   const theme = useTheme(darkMode);
+
   useEffect(() => {
-    NavigationBar.setButtonStyleAsync(darkMode ? 'light' : 'dark'); 
+  async function loadInitialData() {
+    // Carrega os jogadores
+    const storedPlayers = await loadPlayers();
+    if (storedPlayers.length > 0) {
+      setAllPlayers(storedPlayers);
+    }
+    // Carrega o tema
+    const storedThemeIsDark = await loadTheme();
+    setDarkMode(storedThemeIsDark);
+
+    // Carrega os IDs dos jogadores selecionados
+    const storedIds = await loadSelectedPlayerIds();
+    setSelectedPlayerIds(storedIds);
+
+    setIsLoading(false);
+  }
+  loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    NavigationBar.setButtonStyleAsync('light'); 
   }, [darkMode, theme]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      saveTheme(darkMode);
+    }
+  }, [darkMode, isLoading]);
+  
+  useEffect(() => {
+    // Só salva a seleção se o carregamento inicial já tiver terminado
+    if (!isLoading) {
+      saveSelectedPlayerIds(selectedPlayerIds);
+    }
+  }, [selectedPlayerIds, isLoading]);
+
+  useEffect(() => {
+    // Salva a lista principal apenas se o carregamento inicial já terminou
+    if (!isLoading) {
+      savePlayers(allPlayers);
+    }
+  }, [allPlayers, isLoading]);
+
+
   const insets = useSafeAreaInsets();
 
   const generateId = () =>
@@ -101,100 +148,79 @@ export default function App() {
     }
 
   return teamsState.filter((t) => t.names.length > 0);
-}
+  }
 
   function importNames() {
-    const lines = rawInput
-      .split(/\r?\n|,|;/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-    if (lines.length === 0) {
-      Alert.alert(
-        "Nada para importar",
-        "Cole ou digite nomes antes de importar."
-      );
-      return;
-    }
-    setPlayers((prev) => {
-      const existing = new Set(prev.map((p) => p.name.toLowerCase()));
-      const newOnes: Player[] = lines
-        .map((line) => {
-          const parts = line.split(/\s+/);
-          let weight: 1 | 2 | 3 = 2;
-          const last = parts[parts.length - 1];
-          if (["1", "2", "3"].includes(last)) {
-            weight = parseInt(last) as 1 | 2 | 3;
-            parts.pop();
-          }
-          const name = parts.join(" ");
-          return { id: generateId(), name, active: true, weight };
-        })
-        .filter(
-          (p) => p.name.length > 0 && !existing.has(p.name.toLowerCase())
-        );
-      if (newOnes.length === 0) return prev;
-      return [...prev, ...newOnes];
+    const lines = rawInput.split(/\r?\n|,|;/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+
+    const newPlayers: Player[] = [];
+    const newSelectedIds = new Set(selectedPlayerIds);
+    const existingNames = new Set(allPlayers.map(p => p.name.toLowerCase()));
+
+    lines.forEach(line => {
+      const parts = line.split(/\s+/);
+      let weight: 1 | 2 | 3 = 2;
+      const last = parts[parts.length - 1];
+      if (["1", "2", "3"].includes(last)) {
+        weight = parseInt(last) as 1 | 2 | 3;
+        parts.pop();
+      }
+      const name = parts.join(" ");
+      if (name.length > 0 && !existingNames.has(name.toLowerCase())) {
+        const newPlayer = { id: generateId(), name, active: true, weight };
+        newPlayers.push(newPlayer);
+        newSelectedIds.add(newPlayer.id);
+      }
     });
+
+    if (newPlayers.length > 0) {
+      setAllPlayers(prev => [...prev, ...newPlayers]);
+      setSelectedPlayerIds(newSelectedIds);
+    }
     setRawInput("");
     setShowInput(false);
   }
 
   function toggleActive(id: string) {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: !p.active } : p))
+    setAllPlayers(prev =>
+      prev.map(p => (p.id === id ? { ...p, active: !p.active } : p))
     );
   }
 
   function drawTeams() {
-    const activePlayers = players.filter((p) => p.active);
+    const activePlayers = sessionPlayers.filter((p) => p.active);
     if (activePlayers.length === 0) {
-      Alert.alert(
-        "Sem jogadores ativos",
-        "Ative pelo menos um jogador antes de sortear."
-      );
-      // Limpa a lista de sobras se não houver sorteio
+      Alert.alert("Sem jogadores ativos", "Ative pelo menos um jogador antes de sortear.");
       setLeftoverPlayers([]);
       return;
     }
-
     const distributed = balanceTeamsByWeight(activePlayers, teamSize);
-    
-    // --- LÓGICA NOVA COMEÇA AQUI ---
-
-    // 1. Pega os nomes de todos os jogadores que foram colocados em um time
     const drawnPlayerNames = new Set(distributed.flatMap(team => team.names));
-
-    // 2. Filtra a lista de jogadores ativos para encontrar quem NÃO está na lista de sorteados
     const leftovers = activePlayers
       .filter(player => !drawnPlayerNames.has(player.name))
       .map(player => player.name);
-
-    // 3. Atualiza os estados
+    
     setTeams(distributed);
-    setLeftoverPlayers(leftovers); // Guarda os nomes de quem ficou de fora
+    setLeftoverPlayers(leftovers);
     setScreen("draw");
   }
 
   function deletePlayer(playerId: string) {
-    Alert.alert(
-      "Apagar Jogador",
-      "Tem certeza que deseja apagar este jogador permanentemente?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Apagar",
-          style: "destructive",
-          onPress: () => {
-            setPlayers((prev) => prev.filter((p) => p.id !== playerId));
-          },
-        },
-      ]
-    );
+    Alert.alert("Apagar Jogador", "Tem certeza?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Apagar", style: "destructive", onPress: () => {
+          setAllPlayers(prev => prev.filter(p => p.id !== playerId));
+          const newSet = new Set(selectedPlayerIds);
+          newSet.delete(playerId);
+          setSelectedPlayerIds(newSet);
+        }},
+    ]);
   }
 
   function updatePlayerWeight(playerId: string, newWeight: 1 | 2 | 3) {
-    setPlayers((prev) =>
-      prev.map((p) => (p.id === playerId ? { ...p, weight: newWeight } : p))
+    setAllPlayers(prev =>
+      prev.map(p => (p.id === playerId ? { ...p, weight: newWeight } : p))
     );
   }
 
@@ -203,14 +229,34 @@ export default function App() {
     setIsModalVisible(true);
   }
 
+  function togglePlayerSelection(playerId: string) {
+    const newSet = new Set(selectedPlayerIds);
+    if (newSet.has(playerId)) {
+      newSet.delete(playerId);
+    } else {
+      newSet.add(playerId);
+    }
+    setSelectedPlayerIds(newSet);
+  }
+
+  const sessionPlayers = useMemo(
+    () => allPlayers.filter(p => selectedPlayerIds.has(p.id)),
+    [allPlayers, selectedPlayerIds]
+  );
+  
+  const filteredPlayers = useMemo(
+    () => allPlayers.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    [allPlayers, searchQuery]
+  );
+  
   const activeCount = useMemo(
-    () => players.filter((p) => p.active).length,
-    [players]
+    () => sessionPlayers.filter((p) => p.active).length,
+    [sessionPlayers]
   );
 
   const selectedPlayer = useMemo(
-    () => players.find((p) => p.id === selectedPlayerId) ?? null,
-    [players, selectedPlayerId]
+    () => allPlayers.find((p) => p.id === selectedPlayerId) ?? null,
+    [allPlayers, selectedPlayerId]
   );
   
   // --- Renderização ---
@@ -241,19 +287,17 @@ export default function App() {
               />
             )}
 
-            {players.length === 0 ? (
+            {sessionPlayers.length === 0 ? (
               <Text style={[styles.hint, { color: theme.placeholder, marginTop: 20 }]}>Nenhum jogador ainda</Text>
             ) : (
               // Usando ScrollView para permitir as duas listas sem conflito de rolagem
               <ScrollView showsVerticalScrollIndicator={false}> 
                 <Text style={[styles.subheading, { color: theme.text, marginTop: 12, marginBottom: 8 }]}>
-                  Jogadores ativos
+                  Jogadores ativos na partida
                 </Text>
                 {/* CORREÇÃO: Primeira FlatList apenas para jogadores ATIVOS */}
                 <FlatList
-                  data={players
-                    .filter((p) => p.active)
-                    .sort((a, b) => a.name.localeCompare(b.name))}
+                  data={sessionPlayers.filter((p) => p.active)}
                   keyExtractor={(item) => item.id}
                   numColumns={2}
                   scrollEnabled={false} // Desabilita a rolagem da FlatList interna
@@ -264,16 +308,15 @@ export default function App() {
                       darkMode={darkMode}
                       onToggleActive={toggleActive}
                       onLongPress={openPlayerOptionsModal}
+                      variant="grid"
                     />
                   )}
                 />
 
                 {/* CORREÇÃO: Segunda FlatList apenas para jogadores INATIVOS */}
-                {players.some((p) => !p.active) && (
+                {sessionPlayers.some((p) => !p.active) && (
                     <FlatList
-                        data={players
-                        .filter((p) => !p.active)
-                        .sort((a, b) => a.name.localeCompare(b.name))}
+                        data={sessionPlayers.filter((p) => !p.active)}
                         keyExtractor={(item) => item.id}
                         numColumns={3} // Mantendo 3 colunas para inativos, como no original
                         scrollEnabled={false} // Desabilita a rolagem
@@ -294,7 +337,7 @@ export default function App() {
                                     text: "Excluir",
                                     style: "destructive",
                                     onPress: () =>
-                                        setPlayers((prev) =>
+                                        setAllPlayers((prev) =>
                                         prev.filter((p) => p.active)
                                         ),
                                     },
@@ -312,6 +355,7 @@ export default function App() {
                                 darkMode={darkMode}
                                 onToggleActive={toggleActive}
                                 onLongPress={openPlayerOptionsModal}
+                                variant="grid"
                             />
                         )}
                     />
@@ -367,9 +411,37 @@ export default function App() {
                 </View>
               )}
               <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary }]} onPress={drawTeams}>
-                <Text style={[styles.buttonText, { color: theme.primaryText }]}>Sortear Novamente</Text>
+                <Text style={[styles.buttonText, { color: theme.primaryText }]}>Sortear</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {screen === "players" && (
+          <View style={styles.screen}>
+            <TextInput
+              style={[styles.searchInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+              placeholder="Buscar jogador..."
+              placeholderTextColor={theme.placeholder}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            <FlatList
+              data={filteredPlayers.sort((a,b) => a.name.localeCompare(b.name))}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <PlayerCard
+                  player={item}
+                  darkMode={darkMode}
+                  onToggleActive={() => {}} // Não usado aqui
+                  onLongPress={openPlayerOptionsModal}
+                  variant="list"
+                  selectable={true}
+                  isSelected={selectedPlayerIds.has(item.id)}
+                  onSelect={togglePlayerSelection}
+                />
+              )}
+            />
           </View>
         )}
 
@@ -386,7 +458,8 @@ export default function App() {
         <BottomNav
           activeScreen={screen}
           onScreenChange={setScreen}
-          darkMode={darkMode}
+          darkMode={darkMode} 
+          bottomInset={0}
         />
       </View>
 
@@ -470,4 +543,12 @@ const styles = StyleSheet.create({
       fontWeight: '500',
       textAlign: 'center',
     },
+    searchInput: {
+      height: 40,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      fontSize: 16,
+      marginBottom: 12,
+  },
 });

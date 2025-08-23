@@ -10,6 +10,6 @@ export type Team = {
   total: number;
 };
 
-export type Screen = 'edit' | 'draw' | 'settings';
+export type Screen = 'edit' | 'draw' | 'players' | 'settings';
 
 export type TeamSize = 2 | 3 | 4 | 5 | 6;
