@@ -4,6 +4,8 @@
 
 ⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes
 
+⦁	Adicionar um feedback no slider!!!
+
 ~~⦁	Ao invés de levar em consideração peso/nível levar em consideração taxa de vitória~~
 
 ⦁	Tirar do time com base no num de pessoas que estao desabilitadas, n pode tirar o que acabou de entrar
