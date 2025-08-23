@@ -22,4 +22,6 @@
 
 ⦁	Ao invés de levar em consideração peso/nível levar em consideração taxa de vitória
 
+⦁	Trocar peso total na aba draw por nível médio
+
 [Formatação](https://docs.github.com/pt/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
