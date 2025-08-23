@@ -16,6 +16,6 @@
 
 ⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes
 
-⦁	Tirar o x de jogadores desabilitados
+⦁	Tirar o x de jogadores desabilitados eadicionar no lugar uma seta para habilitar todos os jogadores
 
 [Formatação](https://docs.github.com/pt/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
