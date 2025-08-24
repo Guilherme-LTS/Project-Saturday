@@ -2,6 +2,8 @@
 
 ## Futuras novidades
 
+⦁	poder pesquisar por taxa de vitoria e nível
+
 ~~⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes~~
 
 ~~⦁	Adicionar um feedback no slider e popup de player~~
