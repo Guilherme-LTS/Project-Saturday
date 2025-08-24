@@ -18,8 +18,12 @@ import {
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import SortWinRateIcon from '../assets/icons/award.svg';
+import SortLevelIcon from '../assets/icons/bar-chart-2.svg';
 import EyeOffIcon from '../assets/icons/eye-off.svg';
 import EyeIcon from '../assets/icons/eye.svg';
+import SortAlphaIcon from '../assets/icons/sort-alpha.svg';
+import SortSessionIcon from '../assets/icons/sort-session.svg';
 import BottomNav from "../components/BottomNav";
 import CourtView from '../components/CourtView';
 import EditNameModal from '../components/EditNameModal';
@@ -29,7 +33,7 @@ import PlayerOptionsModal from '../components/PlayerOptionsModal';
 import TeamCard from "../components/TeamCard";
 import TeamSizeSlider from '../components/TeamSizeSlider';
 import useTheme from "../hooks/useTheme";
-import { Match, Player, Screen, Team, TeamSize } from "../types";
+import { Match, Player, Screen, SortMode, Team, TeamSize } from "../types";
 import { loadMatchHistory, loadPlayers, loadSelectedPlayerIds, loadTheme, saveMatchHistory, savePlayers, saveSelectedPlayerIds, saveTheme } from '../utils/storage';
 
 export default function App() {
@@ -55,6 +59,7 @@ export default function App() {
   const [displayedBalanceMode, setDisplayedBalanceMode] = useState<'level' | 'winrate'>('level');
   const [playersWhoJustEntered, setPlayersWhoJustEntered] = useState<Set<string>>(new Set());
   const [showCourtView, setShowCourtView] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>('alphabetical');
 
   // 2. Usando nosso hook de tema
   const theme = useTheme(darkMode);
@@ -539,6 +544,19 @@ export default function App() {
     );
   }
 
+  function cycleSortMode() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (sortMode === 'alphabetical') {
+      setSortMode('level');
+    } else if (sortMode === 'level') {
+      setSortMode('winrate');
+    } else if (sortMode === 'winrate') {
+      setSortMode('session'); // Adiciona o novo modo
+    } else {
+      setSortMode('alphabetical'); // Volta para o início
+    }
+  }
+
   async function pickImageAndUpdatePlayer(playerToUpdate: Player) {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
@@ -588,12 +606,38 @@ export default function App() {
   );
   
   const filteredPlayers = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return allPlayers;
+    // 1. Primeiro, filtra todos os jogadores com base na busca
+    const filteredBySearch = allPlayers.filter(p => 
+      normalizeString(p.name).includes(normalizeString(searchQuery))
+    );
+
+    // 2. Depois, aplica a lógica de ordenação sobre o resultado filtrado
+    switch (sortMode) {
+      case 'level':
+        return filteredBySearch.sort((a, b) => b.weight - a.weight);
+      case 'winrate':
+        return filteredBySearch.sort((a, b) => {
+          const rateA = calculateWinRate(a.name) ?? -1;
+          const rateB = calculateWinRate(b.name) ?? -1;
+          return rateB - rateA;
+        });
+      // NOVO MODO 'SESSION'
+      case 'session':
+        return filteredBySearch.sort((a, b) => {
+          const aIsSelected = selectedPlayerIds.has(a.id);
+          const bIsSelected = selectedPlayerIds.has(b.id);
+          // Se 'b' está selecionado e 'a' não, 'b' vem primeiro.
+          if (bIsSelected && !aIsSelected) return 1;
+          // Se 'a' está selecionado e 'b' não, 'a' vem primeiro.
+          if (aIsSelected && !bIsSelected) return -1;
+          // Se ambos estão selecionados (ou não), ordena por nome.
+          return a.name.localeCompare(b.name);
+        });
+      case 'alphabetical':
+      default:
+        return filteredBySearch.sort((a, b) => a.name.localeCompare(b.name));
     }
-    const normalizedQuery = normalizeString(searchQuery);
-    return allPlayers.filter(p => normalizeString(p.name).includes(normalizedQuery));
-  }, [allPlayers, searchQuery]);
+  }, [allPlayers, searchQuery, sortMode, selectedPlayerIds]);
   
   const activeCount = useMemo(
     () => sessionPlayers.filter((p) => p.active).length,
@@ -818,13 +862,24 @@ export default function App() {
 
         {screen === "players" && (
           <View style={styles.screen}>
-            <TextInput
-              style={[styles.searchInput, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-              placeholder="Buscar jogador..."
-              placeholderTextColor={theme.placeholder}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={[styles.searchInput, { flex: 1, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                placeholder="Buscar jogador..."
+                placeholderTextColor={theme.placeholder}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <TouchableOpacity
+                style={[styles.sortButton, { backgroundColor: theme.card, borderColor: theme.border }]}
+                onPress={cycleSortMode}
+              >
+                {sortMode === 'alphabetical' && <SortAlphaIcon fill={theme.text} width={24} height={24} />}
+                {sortMode === 'level' && <SortLevelIcon stroke={theme.text} width={24} height={24} />}
+                {sortMode === 'winrate' && <SortWinRateIcon stroke={theme.text} width={24} height={24} />}
+                {sortMode === 'session' && <SortSessionIcon stroke={theme.text} width={24} height={24} />}
+              </TouchableOpacity>
+            </View>
             <View style={[styles.addContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
               <TouchableOpacity
                   style={styles.dropdownHeader}
@@ -854,7 +909,7 @@ export default function App() {
               )}
             </View>
             <FlatList
-              data={filteredPlayers.sort((a,b) => a.name.localeCompare(b.name))}
+              data={filteredPlayers}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <PlayerCard
@@ -1030,14 +1085,6 @@ const styles = StyleSheet.create({
       fontWeight: '500',
       textAlign: 'center',
     },
-    searchInput: {
-      height: 40,
-      borderWidth: 1,
-      borderRadius: 8,
-      paddingHorizontal: 10,
-      fontSize: 16,
-      marginBottom: 12,
-    },
     addContainer: {
       borderWidth: 1,
       borderRadius: 8,
@@ -1080,5 +1127,27 @@ const styles = StyleSheet.create({
     actionsRow: {
       flexDirection: 'row',
       gap: 8,
+    },
+    searchContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 12,
+    },
+    searchInput: {
+      flex: 1, // Faz a caixa de busca se esticar
+      height: 44,
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      fontSize: 16,
+    },
+    sortButton: {
+      height: 44,
+      width: 44,
+      borderWidth: 1,
+      borderRadius: 8,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
 });

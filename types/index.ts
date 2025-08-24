@@ -22,3 +22,5 @@ export type Match = {
   teams: Team[];
   winnerTeamIndex: number;
 };
+
+export type SortMode = 'alphabetical' | 'level' | 'winrate' | 'session';
