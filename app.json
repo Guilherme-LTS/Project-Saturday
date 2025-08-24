@@ -5,10 +5,8 @@
     "scheme": "volleyballdraw",
     "version": "1.3.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.volleyballdraw"
@@ -20,13 +18,8 @@
         "backgroundColor": "#ffffff"
       },
       "userInterfaceStyle": "automatic",
-      "backgroundColor": "#FFFFFF",
-      "androidNavigationBar": {
-        "visible": "sticky-immersive",
-        "backgroundColor": "#222"
-      }
+      "backgroundColor": "#FFFFFF"
     },
-
     "web": {
       "favicon": "./assets/icon.png"
     },
@@ -34,6 +27,9 @@
       "eas": {
         "projectId": "fa96bb1c-fd04-4daa-a150-70bc18d4a7de"
       }
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }

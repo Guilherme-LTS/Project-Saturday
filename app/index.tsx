@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import * as NavigationBar from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -117,6 +118,11 @@ export default function App() {
       saveMatchHistory(matchHistory);
     }
   }, [matchHistory, isLoading]);
+
+  useEffect(() => {
+    // Deixa a barra de navegação do Android transparente
+    SystemUI.setBackgroundColorAsync(darkMode ? '#222' : '#FFF');
+  }, [darkMode]);
 
   const insets = useSafeAreaInsets();
 
