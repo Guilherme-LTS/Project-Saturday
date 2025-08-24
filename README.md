@@ -2,7 +2,7 @@
 
 ## Futuras novidades
 
-⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes
+~~⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes~~
 
 ~~⦁	Adicionar um feedback no slider e popup de player~~
 
