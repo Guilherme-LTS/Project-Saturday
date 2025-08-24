@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import useTheme from '../hooks/useTheme';
@@ -13,7 +14,10 @@ const MatchHistoryCard: React.FC<MatchHistoryCardProps> = ({ match, darkMode, on
   const theme = useTheme(darkMode);
 
   return (
-    <TouchableOpacity onLongPress={() => onDelete(match.id)}>
+    <TouchableOpacity onLongPress={() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Adiciona a vibração
+      onDelete(match.id);
+    }}>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {match.teams.map((team, index) => {
           const isWinner = index === match.winnerTeamIndex;

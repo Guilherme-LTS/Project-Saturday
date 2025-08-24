@@ -44,8 +44,12 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
     <View style={[styles.court, { backgroundColor: theme.card, borderColor: theme.border }]}>
       
       {/* Time 1 (em cima) */}
-      <TouchableOpacity 
-        style={[ styles.teamArea, { borderColor: winnerIndex === 0 ? theme.accentGreen : 'transparent' }]} 
+      <TouchableOpacity
+        style={[ styles.teamArea, {
+          borderColor: winnerIndex === 0 ? theme.accentGreen : 'transparent',
+          borderBottomLeftRadius: winnerIndex === 0 ? 0 : styles.teamArea.borderRadius,
+          borderBottomRightRadius: winnerIndex === 0 ? 0 : styles.teamArea.borderRadius,
+        }]} 
         onPress={() => onSelectWinner(0)}
       >
         {team1.map(player => (
@@ -62,8 +66,12 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
       <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
       {/* Time 2 (em baixo) */}
-      <TouchableOpacity 
-        style={[ styles.teamArea, { borderColor: winnerIndex === 1 ? theme.accentGreen : 'transparent' }]} 
+      <TouchableOpacity
+        style={[ styles.teamArea, {
+          borderColor: winnerIndex === 1 ? theme.accentGreen : 'transparent',
+          borderTopLeftRadius: winnerIndex === 1 ? 0 : styles.teamArea.borderRadius,
+          borderTopRightRadius: winnerIndex === 1 ? 0 : styles.teamArea.borderRadius,
+        }]}
         onPress={() => onSelectWinner(1)}
       >
         {team2.map(player => (
