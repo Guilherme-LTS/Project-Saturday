@@ -75,17 +75,17 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, dar
         inactiveColor={inactiveColor}
       />
       <NavButton
-        IconComponent={IconUsers}
-        screenName="players"
-        isActive={activeScreen === 'players'}
+        IconComponent={IconList}
+        screenName="history"
+        isActive={activeScreen === 'history'}
         onPress={onScreenChange}
         activeColor={activeColor}
         inactiveColor={inactiveColor}
       />
       <NavButton
-        IconComponent={IconList}
-        screenName="history"
-        isActive={activeScreen === 'history'}
+        IconComponent={IconUsers}
+        screenName="players"
+        isActive={activeScreen === 'players'}
         onPress={onScreenChange}
         activeColor={activeColor}
         inactiveColor={inactiveColor}

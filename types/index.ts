@@ -1,3 +1,4 @@
+// types/index.ts (versão final)
 export type Player = {
   id: string;
   name: string;
@@ -7,17 +8,17 @@ export type Player = {
 };
 
 export type Team = {
-  names: string[];
+  players: Player[]; // A propriedade correta é 'players'
   total: number;
 };
 
-export type Screen = 'edit' | 'draw' | 'players' | 'settings';
+export type Screen = 'edit' | 'draw' | 'players' | 'settings' | 'history';
 
 export type TeamSize = number;
 
 export type Match = {
-  id: string; // Usaremos a data como ID
-  date: string; // Data da partida em formato de texto
-  teams: Team[]; // Os times que jogaram
-  winnerTeamIndex: number; // O índice do time vencedor no array 'teams'
+  id: string;
+  date: string;
+  teams: Team[];
+  winnerTeamIndex: number;
 };

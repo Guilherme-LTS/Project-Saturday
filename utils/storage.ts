@@ -78,6 +78,7 @@ export async function loadSelectedPlayerIds(): Promise<Set<string>> {
   }
 }
 
+// --- Funções do Histórico ---
 export async function saveMatchHistory(history: Match[]): Promise<void> {
   try {
     const jsonValue = JSON.stringify(history);

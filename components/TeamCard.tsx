@@ -1,8 +1,6 @@
-// components/TeamCard.tsx (versão final e corrigida)
-
 import Checkbox from 'expo-checkbox';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Team } from '../types';
 
 interface TeamCardProps {
@@ -15,46 +13,55 @@ interface TeamCardProps {
   onSelectWinner?: () => void;
 }
 
-const TeamCard: React.FC<TeamCardProps> = ({ team, teamNumber, darkMode, balanceMode, showWinnerCheckbox, isWinner, onSelectWinner }) => {
+const TeamCard: React.FC<TeamCardProps> = ({
+  team,
+  teamNumber,
+  darkMode,
+  balanceMode,
+  showWinnerCheckbox,
+  isWinner,
+  onSelectWinner,
+}) => {
   
   const averageValue =
-    team.names.length > 0
-      ? (team.total / team.names.length).toFixed(1)
+    team.players.length > 0
+      ? (team.total / team.players.length).toFixed(1)
       : 0;
   
-  // A lógica aqui já estava correta
   const label = balanceMode === 'level' ? 'Nível médio:' : 'Vitória média:';
   const displayValue = balanceMode === 'level' ? averageValue : `${averageValue}%`;
 
   return (
-    <View
-      style={[
-        styles.teamCard,
-        {
-          backgroundColor: darkMode ? '#333' : '#fff',
-          borderColor: darkMode ? (isWinner ? '#4CAF50' : '#555') : (isWinner ? '#4CAF50' : '#eee'),
-          borderWidth: isWinner ? 2 : 1,
-        },
-      ]}
-    >
-      <View style={styles.header}>
-        <Text style={[styles.teamTitle, { color: darkMode ? '#0a84ff' : '#0a84ff' }]}>
-          Time {teamNumber} ({team.names.length}) - {label} {displayValue}
-        </Text>
-        {showWinnerCheckbox && (
-          <Checkbox
-            value={isWinner}
-            onValueChange={onSelectWinner}
-            color={isWinner ? '#4CAF50' : '#888'}
-          />
-        )}
+    <TouchableOpacity onPress={onSelectWinner} disabled={!showWinnerCheckbox}>
+      <View
+        style={[
+          styles.teamCard,
+          {
+            backgroundColor: darkMode ? '#333' : '#fff',
+            borderColor: isWinner ? '#4CAF50' : (darkMode ? '#555' : '#eee'),
+            borderWidth: 2,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <Text style={[styles.teamTitle, { color: darkMode ? '#0a84ff' : '#0a84ff' }]}>
+            Time {teamNumber} ({team.players.length}) - {label} {displayValue}
+          </Text>
+          {showWinnerCheckbox && (
+            <Checkbox
+              value={isWinner}
+              onValueChange={onSelectWinner}
+              color={isWinner ? '#4CAF50' : '#888'}
+            />
+          )}
+        </View>
+        {team.players.map((player) => (
+          <Text key={player.id} style={[styles.teamPlayer, { color: darkMode ? '#fff' : '#222' }]}>
+            • {player.name}
+          </Text>
+        ))}
       </View>
-      {team.names.map((name, i) => (
-        <Text key={i} style={[styles.teamPlayer, { color: darkMode ? '#fff' : '#222' }]}>
-          • {name}
-        </Text>
-      ))}
-    </View>
+    </TouchableOpacity>
   );
 };
 

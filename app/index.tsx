@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -17,7 +18,10 @@ import {
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import EyeOffIcon from '../assets/icons/eye-off.svg';
+import EyeIcon from '../assets/icons/eye.svg';
 import BottomNav from "../components/BottomNav";
+import CourtView from '../components/CourtView';
 import EditNameModal from '../components/EditNameModal';
 import MatchHistoryCard from '../components/MatchHistoryCard';
 import PlayerCard from "../components/PlayerCard";
@@ -50,6 +54,7 @@ export default function App() {
   const [balanceMode, setBalanceMode] = useState<'level' | 'winrate'>('level');
   const [displayedBalanceMode, setDisplayedBalanceMode] = useState<'level' | 'winrate'>('level');
   const [playersWhoJustEntered, setPlayersWhoJustEntered] = useState<Set<string>>(new Set());
+  const [showCourtView, setShowCourtView] = useState(false);
 
   // 2. Usando nosso hook de tema
   const theme = useTheme(darkMode);
@@ -126,49 +131,38 @@ export default function App() {
     const n = activePlayers.length;
     if (n === 0) return [];
 
-    // MUDANÇA 1: Usar Math.floor para priorizar o tamanho do time.
-    // Para 13 jogadores e tamanho 6, isso resultará em 2 times.
     const numTeams = Math.floor(n / size);
-
-    // Se não houver jogadores suficientes para formar nem um time, retorna vazio.
     if (numTeams === 0) {
-      Alert.alert(
-        "Jogadores Insuficientes",
-        `São necessários pelo menos ${size} jogadores para formar um time.`
-      );
+      Alert.alert("Jogadores Insuficientes", `São necessários pelo menos ${size} jogadores para formar um time.`);
       return [];
     }
 
-    const teamsState: Team[] = Array.from(
-      { length: numTeams },
-      () => ({ names: [], total: 0 })
-    );
+    // CORRIGIDO AQUI
+    const teamsState: Team[] = Array.from({ length: numTeams }, () => ({ players: [], total: 0 }));
 
-    // Embaralha para quebrar empates e depois ordena por peso desc
     const pool = shuffleArray(activePlayers.slice()).sort((a, b) => b.weight - a.weight);
 
     for (const p of pool) {
-      // escolhe o time com menor soma de pesos que ainda tem vaga
       let bestIdx = -1;
       let bestTotal = Infinity;
       for (let i = 0; i < numTeams; i++) {
         const t = teamsState[i];
-        if (t.names.length < size && t.total < bestTotal) {
+        // CORRIGIDO AQUI
+        if (t.players.length < size && t.total < bestTotal) {
           bestTotal = t.total;
           bestIdx = i;
         }
       }
       
-      // Adiciona o jogador apenas se um time válido (com vaga) foi encontrado
       if (bestIdx !== -1) {
-        teamsState[bestIdx].names.push(p.name);
+        // CORRIGIDO AQUI
+        teamsState[bestIdx].players.push(p);
         teamsState[bestIdx].total += p.weight;
       }
-      
-      // MUDANÇA 2: O bloco de código de "fallback" que existia aqui foi removido.
     }
-
-  return teamsState.filter((t) => t.names.length > 0);
+    
+    // CORRIGIDO AQUI
+    return teamsState.filter((t) => t.players.length > 0);
   }
 
   function balanceTeamsByWinRate(activePlayers: Player[], size: number): Team[] {
@@ -181,19 +175,17 @@ export default function App() {
       return [];
     }
 
-    const teamsState: Team[] = Array.from({ length: numTeams }, () => ({ names: [], total: 0 }));
+    // CORRIGIDO AQUI
+    const teamsState: Team[] = Array.from({ length: numTeams }, () => ({ players: [], total: 0 }));
 
-    // Mapeia cada jogador para um objeto que inclui sua taxa de vitória
     const playerPool = activePlayers.map(player => {
       const winRate = calculateWinRate(player.name);
       return {
         ...player,
-        // Se o jogador não tem histórico, considera a taxa como 50%
         winRate: winRate === null ? 50 : winRate,
       };
     });
 
-    // Embaralha e ordena pela taxa de vitória
     const sortedPool = shuffleArray(playerPool).sort((a, b) => b.winRate - a.winRate);
 
     for (const p of sortedPool) {
@@ -201,17 +193,21 @@ export default function App() {
       let bestTotal = Infinity;
       for (let i = 0; i < numTeams; i++) {
         const t = teamsState[i];
-        if (t.names.length < size && t.total < bestTotal) {
+        // CORRIGIDO AQUI
+        if (t.players.length < size && t.total < bestTotal) {
           bestTotal = t.total;
           bestIdx = i;
         }
       }
       if (bestIdx !== -1) {
-        teamsState[bestIdx].names.push(p.name);
-        teamsState[bestIdx].total += p.winRate; // Soma a taxa de vitória, não o nível
+        // CORRIGIDO AQUI
+        teamsState[bestIdx].players.push(p);
+        teamsState[bestIdx].total += p.winRate;
       }
     }
-    return teamsState;
+
+    // CORRIGIDO AQUI
+    return teamsState.filter((t) => t.players.length > 0);
   }
 
   function importNames() {
@@ -266,7 +262,7 @@ export default function App() {
       ? balanceTeamsByWeight(activePlayers, teamSize)
       : balanceTeamsByWinRate(activePlayers, teamSize);
     
-    const drawnPlayerNames = new Set(distributed.flatMap(team => team.names));
+    const drawnPlayerNames = new Set(distributed.flatMap(team => team.players.map(p => p.name)));
     
     const inactivePlayersInSession = sessionPlayers.filter(p => !p.active).map(p => p.name);
     const leftoversFromDraw = activePlayers
@@ -284,11 +280,11 @@ export default function App() {
 
   function handleEndMatchAndSubstitute() {
     if (winnerIndex === null) {
-      Alert.alert("Selecione um vencedor", "Marque o time vencedor antes de finalizar.");
+      Alert.alert("Selecione um vencedor", "Marque o time vencedor antes de finalizar a partida.");
       return;
     }
     
-    // 1. Salva a partida no histórico PRIMEIRO
+    // 1. Salva a partida no histórico
     const finishedMatch: Match = {
       id: new Date().toISOString(), date: new Date().toISOString(), teams: teams, winnerTeamIndex: winnerIndex,
     };
@@ -308,22 +304,22 @@ export default function App() {
     const losingTeamIndex = winnerIndex === 0 ? 1 : 0;
     const losingTeam = teams[losingTeamIndex];
     
-    // USA O ESTADO ATUAL 'playersWhoJustEntered' para determinar quem está imune
-    const eligibleToLeave = losingTeam.names.filter(name => !playersWhoJustEntered.has(name));
+    const losingTeamPlayerNames = losingTeam.players.map(p => p.name);
+    const eligibleToLeave = losingTeamPlayerNames.filter(name => !playersWhoJustEntered.has(name));
     const numToSubstitute = playersToEnter.length;
 
     if (eligibleToLeave.length < numToSubstitute) {
       Alert.alert("Não é possível substituir", "O time perdedor não tem jogadores suficientes que possam sair. A partida foi salva no histórico. Faça um novo sorteio.");
       setTeams([]);
       setWinnerIndex(null);
-      // Como a substituição falhou, a próxima rodada é um sorteio novo, então resetamos a imunidade
       setPlayersWhoJustEntered(new Set());
       return;
     }
     
+    // A variável 'playersToLeave' é criada aqui...
     const playersToLeave = shuffleArray(eligibleToLeave).slice(0, numToSubstitute);
     
-    // 3. Atualiza o status 'ativo' na lista principal
+    // ...e usada somente depois, o que é o correto.
     setAllPlayers(prevAllPlayers =>
       prevAllPlayers.map(player => {
         if (playersToLeave.includes(player.name)) return { ...player, active: false };
@@ -332,9 +328,9 @@ export default function App() {
       })
     );
     
-    // 4. ATUALIZA OS ESTADOS PARA A PRÓXIMA RODADA
+    // 4. Atualiza os estados para a próxima rodada
     setLeftoverPlayers(playersToLeave);
-    setPlayersWhoJustEntered(new Set(playersToEnter)); // Define a imunidade para a PRÓXIMA rodada
+    setPlayersWhoJustEntered(new Set(playersToEnter));
 
     // 5. Limpa a tela
     setTeams([]);
@@ -360,6 +356,7 @@ export default function App() {
   }
 
   function openPlayerOptionsModal(player: Player) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const rate = calculateWinRate(player.name);
     setPlayerWinRate(rate);
     setSelectedPlayerId(player.id);
@@ -455,7 +452,7 @@ export default function App() {
 
       // Verifica se o jogador estava em algum dos times da partida
       match.teams.forEach((team, index) => {
-        if (team.names.includes(playerName)) {
+        if (team.players.some(p => p.name === playerName)) {
           playedInMatch = true;
           // Se ele estava no time vencedor, incrementa as vitórias
           if (index === match.winnerTeamIndex) {
@@ -476,6 +473,70 @@ export default function App() {
 
     // Calcula a porcentagem e arredonda
     return Math.round((gamesWon / gamesPlayed) * 100);
+  }
+
+  function deleteMatchHistory() {
+    // Mostra um alerta de confirmação
+    Alert.alert(
+      "Apagar Histórico de Partidas?",
+      "Esta ação é permanente e não pode ser desfeita.",
+      [
+        {
+          text: "Cancelar",
+          style: "cancel",
+        },
+        {
+          text: "Sim, Apagar Histórico",
+          style: "destructive",
+          onPress: () => {
+            // Se o usuário confirmar, limpa o estado do histórico
+            setMatchHistory([]);
+            // O useEffect salvará a lista vazia automaticamente
+          },
+        },
+      ]
+    );
+  }
+
+  function deleteSingleMatch(matchId: string) {
+    Alert.alert(
+      "Apagar Partida?",
+      "Tem certeza que deseja apagar esta partida do histórico?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Apagar",
+          style: "destructive",
+          onPress: () => {
+            setMatchHistory(prev => prev.filter(match => match.id !== matchId));
+          },
+        },
+      ]
+    );
+  }
+
+  function deleteMatchesByDate(dateTitle: string) {
+    Alert.alert(
+      `Apagar partidas de ${dateTitle}?`,
+      "Esta ação é permanente e apagará todos os jogos deste dia.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sim, Apagar",
+          style: "destructive",
+          onPress: () => {
+            setMatchHistory(prev =>
+              prev.filter(match => {
+                const matchDate = new Date(match.date).toLocaleDateString('pt-BR', {
+                  day: '2-digit', month: 'long', year: 'numeric',
+                });
+                return matchDate !== dateTitle;
+              })
+            );
+          },
+        },
+      ]
+    );
   }
 
   async function pickImageAndUpdatePlayer(playerToUpdate: Player) {
@@ -665,36 +726,58 @@ export default function App() {
         )}
 
         {screen === "draw" && (
+          // O container principal da tela, com flex: 1
           <View style={styles.screen}>
-            <ScrollView style={{ flex: 1 }}>
+            
+            {/* 1. CONTAINER DO CONTEÚDO - A chave é este `flex: 1` */}
+            <View style={{ flex: 1 }}>
               {teams.length === 0 ? (
-                <Text style={[styles.hint, { color: theme.placeholder }]}>Ainda não foi sorteado.</Text>
+                // Mensagem de "Ainda não foi sorteado"
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>
+                    Clique em "Sortear Times" para começar.
+                  </Text>
+                </View>
+              ) : showCourtView ? (
+                // A visualização da quadra
+                <CourtView
+                  teams={teams}
+                  darkMode={darkMode}
+                  winnerIndex={winnerIndex} // Passa o índice do vencedor
+                  onSelectWinner={(index) => setWinnerIndex(index === winnerIndex ? null : index)} // Passa a função de clique
+                />
               ) : (
-                teams.map((t, idx) => (
-                  <TeamCard
-                    key={idx}
-                    team={t}
-                    teamNumber={idx + 1}
-                    darkMode={darkMode}
-                    showWinnerCheckbox={true} // Mostra o checkbox
-                    isWinner={idx === winnerIndex} // Define se está marcado
-                    onSelectWinner={() => setWinnerIndex(idx === winnerIndex ? null : idx)} // Marca/desmarca o vencedor
-                    balanceMode={displayedBalanceMode}
-                  />
-                ))
+                // A lista de times
+                <ScrollView>
+                  {teams.map((t, idx) => (
+                    <TeamCard
+                      key={idx}
+                      team={t}
+                      teamNumber={idx + 1}
+                      darkMode={darkMode}
+                      showWinnerCheckbox={true}
+                      isWinner={idx === winnerIndex}
+                      onSelectWinner={() => setWinnerIndex(idx === winnerIndex ? null : idx)}
+                      balanceMode={displayedBalanceMode}
+                    />
+                  ))}
+                </ScrollView>
               )}
-            </ScrollView>
-            <View style={styles.drawActionsContainer}>
-              {/* Se já existem times na tela, mostra os botões de ação da partida */}
-              {teams.length > 0 ? (
-                <>
+            </View>
+
+            {/* 2. RODAPÉ - agora ele é empurrado para baixo pelo container acima */}
+            <View style={styles.drawFooter}>
+
+              {/* Botões extras que só aparecem DEPOIS do sorteio */}
+              {teams.length > 0 && (
+                <View style={[styles.actionsRow, { marginBottom: 8 }]}>
                   <TouchableOpacity 
                     style={[styles.toggleButton, { backgroundColor: theme.border }]}
-                    onPress={() => setBalanceMode(prev => prev === 'level' ? 'winrate' : 'level')}
+                    onPress={() => setShowCourtView(prev => !prev)}
                   >
-                    <Text style={[styles.buttonText, { color: theme.text, fontSize: 14 }]}>
-                      {balanceMode === 'level' ? 'Por Nível' : 'Por Vitória'}
-                    </Text>
+                    {showCourtView 
+                      ? <EyeOffIcon stroke={theme.text} width={24} height={24} /> 
+                      : <EyeIcon stroke={theme.text} width={24} height={24} />}
                   </TouchableOpacity>
 
                   <TouchableOpacity 
@@ -706,23 +789,29 @@ export default function App() {
                   >
                     <Text style={[styles.buttonText, { color: theme.primaryText }]}>Finalizar Partida</Text>
                   </TouchableOpacity>
-                </>
-              ) : (
-                // Se não há times, mostra um botão para iniciar um novo sorteio
-                <View style={{ flex: 1 }} /> // Espaçador vazio para manter o layout
+                </View>
               )}
-            </View>
 
-            {/* Botão de "Sortear" agora fica separado e sempre visível */}
-            <View style={{ padding: 8, paddingTop: 0 }}>
-              <TouchableOpacity 
-                style={[styles.button, { backgroundColor: theme.primary, paddingVertical: 14 }]} 
-                onPress={handleDraw}
-              >
-                <Text style={[styles.buttonText, { color: theme.primaryText }]}>
-                  {teams.length > 0 ? 'Sortear Novamente' : 'Sortear Times'}
-                </Text>
-              </TouchableOpacity>
+              {/* Botões principais que estão SEMPRE na parte de baixo */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity 
+                  style={[styles.toggleButton, { backgroundColor: theme.border }]}
+                  onPress={() => setBalanceMode(prev => prev === 'level' ? 'winrate' : 'level')}
+                >
+                  <Text style={[styles.buttonText, { color: theme.text, fontSize: 14 }]}>
+                    {balanceMode === 'level' ? 'Por Nível' : 'Por Vitória'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.drawButton, { backgroundColor: theme.primary, paddingVertical: 14 }]} 
+                  onPress={handleDraw}
+                >
+                  <Text style={[styles.buttonText, { color: theme.primaryText }]}>
+                    {teams.length > 0 ? 'Sortear Novamente' : 'Sortear Times'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -800,6 +889,10 @@ export default function App() {
                     <TouchableOpacity 
                       style={[styles.sectionHeader, { backgroundColor: theme.border }]} 
                       onPress={() => toggleSection(title)}
+                      onLongPress={() => {
+                        deleteMatchesByDate(title)
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                      }}
                     >
                       <Text style={[styles.subheading, { color: theme.text }]}>{title}</Text>
                       <Text style={[styles.arrow, { color: theme.text }]}>{isExpanded ? "▲" : "▼"}</Text>
@@ -811,7 +904,11 @@ export default function App() {
                   if (!expandedSections.has(section.title)) {
                     return null;
                   }
-                  return <MatchHistoryCard match={item} darkMode={darkMode} />;
+                  return <MatchHistoryCard
+                    match={item} 
+                    darkMode={darkMode}
+                    onDelete={deleteSingleMatch}
+                  />;
                 }}
               />
             )}
@@ -821,12 +918,16 @@ export default function App() {
         {screen === "settings" && (
             <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
                 <Text style={[styles.heading, { color: theme.text, marginBottom: 20 }]}>Configurações</Text>
-                <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary, paddingVertical: 12, paddingHorizontal: 56 }]} onPress={() => setDarkMode(!darkMode)}>
+                <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary, paddingVertical: 12, paddingHorizontal: darkMode ? 56 : 50 }]} onPress={() => setDarkMode(!darkMode)}>
                     <Text style={[styles.buttonText, { color: theme.primaryText }]}>{darkMode ? 'Ativar Modo Claro' : 'Ativar Modo Escuro'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={[styles.button, { backgroundColor: theme.danger, marginTop: 16, paddingVertical: 12, paddingHorizontal: 20 }]} onPress={deleteAllPlayers}>
                     <Text style={[styles.buttonText, { color: theme.primaryText }]}>Apagar Todos os Jogadores</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: theme.danger, marginTop: 16, paddingVertical: 12, paddingHorizontal: 60 }]} onPress={deleteMatchHistory}>
+                    <Text style={[styles.buttonText, { color: theme.primaryText }]}>Apagar Histórico</Text>
                 </TouchableOpacity>
             </View>
         )}
@@ -960,12 +1061,6 @@ const styles = StyleSheet.create({
       borderRadius: 8,
       marginBottom: 10,
     },
-    drawActionsContainer: {
-      flexDirection: 'row',
-      padding: 8,
-      paddingTop: 0,
-      gap: 8,
-    },
     toggleButton: {
       flex: 1, // Ocupa 25% do espaço (1 de 4 partes)
       borderRadius: 8,
@@ -978,5 +1073,12 @@ const styles = StyleSheet.create({
       paddingVertical: 14,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    drawFooter: {
+      paddingTop: 8,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 8,
     },
 });
