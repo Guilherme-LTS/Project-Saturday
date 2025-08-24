@@ -4,7 +4,7 @@
 
 ⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes
 
-⦁	Adicionar um feedback no slider!!!
+~~⦁	Adicionar um feedback no slider e popup de player~~
 
 ~~⦁	Ao invés de levar em consideração peso/nível levar em consideração taxa de vitória~~
 
