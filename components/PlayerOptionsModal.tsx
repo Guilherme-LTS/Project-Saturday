@@ -1,9 +1,8 @@
-// components/PlayerOptionsModal.tsx (versão completa e corrigida)
+// components/PlayerOptionsModal.tsx (versão atualizada)
 
 import React from 'react';
 import {
   Alert,
-  Image,
   Modal,
   StyleSheet,
   Text,
@@ -11,14 +10,18 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+
+// 1. Importar o que precisamos
 import useTheme from '../hooks/useTheme';
-import { Player } from '../types';
+import { Match, Player } from '../types';
+import { calculatePlayerStats } from '../utils/helpers';
+import PlayerAvatar from './PlayerAvatar';
 
 interface PlayerOptionsModalProps {
   visible: boolean;
   player: Player | null;
   darkMode: boolean;
-  winRate: number | null;
+  matchHistory: Match[]; // <-- 2. Mudar a prop
   onClose: () => void;
   onDelete: (playerId: string) => void;
   onUpdateWeight: (player: Player) => void;
@@ -28,11 +31,14 @@ interface PlayerOptionsModalProps {
 }
 
 const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
-  visible, player, darkMode, winRate, onClose, onDelete, onUpdateWeight, onEditName, onChangePhoto, onRemovePhoto
+  visible, player, darkMode, matchHistory, onClose, onDelete, onUpdateWeight, onEditName, onChangePhoto, onRemovePhoto
 }) => {
   const theme = useTheme(darkMode);
 
   if (!player) return null;
+
+  // 3. Calcular as estatísticas aqui dentro
+  const stats = calculatePlayerStats(player.id, matchHistory);
 
   const handleDelete = () => {
     onClose();
@@ -46,7 +52,7 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
   const handleRemovePhoto = () => {
     Alert.alert(
       "Remover Foto",
-      "Tem certeza que deseja remover a foto deste jogador e voltar para o avatar padrão?",
+      "Tem certeza que deseja remover a foto deste jogador?",
       [
         { text: "Cancelar", style: "cancel" },
         {
@@ -61,10 +67,6 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
     );
   };
 
-  const imageSource = player.photoUri
-    ? { uri: player.photoUri }
-    : require('../assets/images/default-avatar.png');
-
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
@@ -75,22 +77,28 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
               <TouchableOpacity 
                 onPress={() => onChangePhoto(player)}
                 onLongPress={player.photoUri ? handleRemovePhoto : undefined}
+                style={styles.avatarContainer}
               >
-                <Image source={imageSource} style={styles.avatar} />
+                {/* 4. Usar o PlayerAvatar */}
+                <PlayerAvatar player={player} size={100} theme={theme} />
               </TouchableOpacity>
 
               <Text style={[styles.modalTitle, { color: theme.text }]}>{player.name}</Text>
+              
               <View style={styles.statsContainer}>
                 <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
                   Nível: {player.weight}
                 </Text>
-                {/* Só mostra a taxa de vitória se ela existir (jogador já jogou) */}
-                {winRate !== null && (
+                
+                {/* 5. Exibir as novas estatísticas */}
+                {stats.winRate !== null && (
                   <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
-                    • Taxa de Vitória: {winRate}%
+                    •  Vitória: {stats.winRate}% ({stats.gamesPlayed} jogos)
                   </Text>
                 )}
               </View>
+
+              {/* Botões de ação (sem alterações na lógica) */}
               <TouchableOpacity
                 style={[styles.button, { backgroundColor: theme.primary }]}
                 onPress={onEditName}
@@ -125,14 +133,9 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
 };
 
 const styles = StyleSheet.create({
-  avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 2,
-    borderColor: '#555',
-    marginBottom: 12,
+  avatarContainer: {
     alignSelf: 'center',
+    marginBottom: 12,
   },
   modalOverlay: {
     flex: 1,
@@ -180,6 +183,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
     gap: 10,
+    flexWrap: 'wrap', // Permite que o texto quebre a linha se não couber
   },
 });
 

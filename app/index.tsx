@@ -1,4 +1,7 @@
+// app/index.tsx (versão final, completa e sem duplicatas)
+
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as NavigationBar from 'expo-navigation-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect, useMemo, useState } from "react";
@@ -7,18 +10,18 @@ import {
   FlatList,
   SafeAreaView,
   ScrollView,
-  SectionList,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
 import SortWinRateIcon from '../assets/icons/award.svg';
 import SortLevelIcon from '../assets/icons/bar-chart-2.svg';
 import EyeOffIcon from '../assets/icons/eye-off.svg';
@@ -28,13 +31,15 @@ import SortSessionIcon from '../assets/icons/sort-session.svg';
 import BottomNav from "../components/BottomNav";
 import CourtView from '../components/CourtView';
 import EditNameModal from '../components/EditNameModal';
-import MatchHistoryCard from '../components/MatchHistoryCard';
+import HistoryDayCard from '../components/HistoryDayCard';
+import MatchDetailCard from '../components/MatchDetailCard';
 import PlayerCard from "../components/PlayerCard";
 import PlayerOptionsModal from '../components/PlayerOptionsModal';
 import TeamCard from "../components/TeamCard";
 import TeamSizeSlider from '../components/TeamSizeSlider';
 import useTheme from "../hooks/useTheme";
 import { Match, Player, Screen, SortMode, Team, TeamSize } from "../types";
+import { calculatePlayerStats } from '../utils/helpers';
 import { loadMatchHistory, loadPlayers, loadSelectedPlayerIds, loadTheme, saveMatchHistory, savePlayers, saveSelectedPlayerIds, saveTheme } from '../utils/storage';
 
 export default function App() {
@@ -42,7 +47,6 @@ export default function App() {
   const [rawInput, setRawInput] = useState("");
   const [teamSize, setTeamSize] = useState<TeamSize>(6);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [leftoverPlayers, setLeftoverPlayers] = useState<string[]>([]);
   const [showInput, setShowInput] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -58,77 +62,59 @@ export default function App() {
   const [playerWinRate, setPlayerWinRate] = useState<number | null>(null);
   const [balanceMode, setBalanceMode] = useState<'level' | 'winrate'>('level');
   const [displayedBalanceMode, setDisplayedBalanceMode] = useState<'level' | 'winrate'>('level');
-  const [playersWhoJustEntered, setPlayersWhoJustEntered] = useState<Set<string>>(new Set());
-  const [showCourtView, setShowCourtView] = useState(false);
+  const [showCourtView, setShowCourtView] = useState(true);
   const [sortMode, setSortMode] = useState<SortMode>('alphabetical');
+  const [leftoverPlayerIds, setLeftoverPlayerIds] = useState<string[]>([]);
+  const [playersWhoJustEnteredIds, setPlayersWhoJustEnteredIds] = useState<Set<string>>(new Set());
+  const [fadeHeight, setFadeHeight] = useState(60);
+  const [layoutHeight, setLayoutHeight] = useState(0);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  // 2. Usando nosso hook de tema
   const theme = useTheme(darkMode);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
-  async function loadInitialData() {
-    // Carrega os jogadores
-    const storedPlayers = await loadPlayers();
-    if (storedPlayers.length > 0) {
-      setAllPlayers(storedPlayers);
+    async function loadInitialData() {
+      const storedPlayers = await loadPlayers();
+      if (storedPlayers.length > 0) setAllPlayers(storedPlayers);
+      const storedThemeIsDark = await loadTheme();
+      setDarkMode(storedThemeIsDark);
+      const storedIds = await loadSelectedPlayerIds();
+      setSelectedPlayerIds(storedIds);
+      const storedHistory = await loadMatchHistory();
+      setMatchHistory(storedHistory);
+      setIsLoading(false);
     }
-    // Carrega o tema
-    const storedThemeIsDark = await loadTheme();
-    setDarkMode(storedThemeIsDark);
-
-    // Carrega os IDs dos jogadores selecionados
-    const storedIds = await loadSelectedPlayerIds();
-    setSelectedPlayerIds(storedIds);
-
-    // Carrega o histórico de partidas
-    const storedHistory = await loadMatchHistory();
-    setMatchHistory(storedHistory);
-
-    setIsLoading(false);
-  }
-  loadInitialData();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
-    NavigationBar.setButtonStyleAsync('light'); 
+    NavigationBar.setButtonStyleAsync('light');
   }, [darkMode, theme]);
 
   useEffect(() => {
-    if (!isLoading) {
-      saveTheme(darkMode);
-    }
+    if (!isLoading) saveTheme(darkMode);
   }, [darkMode, isLoading]);
   
   useEffect(() => {
-    // Só salva a seleção se o carregamento inicial já tiver terminado
-    if (!isLoading) {
-      saveSelectedPlayerIds(selectedPlayerIds);
-    }
+    if (!isLoading) saveSelectedPlayerIds(selectedPlayerIds);
   }, [selectedPlayerIds, isLoading]);
 
   useEffect(() => {
-    // Salva a lista principal apenas se o carregamento inicial já terminou
-    if (!isLoading) {
-      savePlayers(allPlayers);
-    }
+    if (!isLoading) savePlayers(allPlayers);
   }, [allPlayers, isLoading]);
 
   useEffect(() => {
-    if (!isLoading) {
-      saveMatchHistory(matchHistory);
-    }
+    if (!isLoading) saveMatchHistory(matchHistory);
   }, [matchHistory, isLoading]);
 
   useEffect(() => {
-    // Deixa a barra de navegação do Android transparente
     SystemUI.setBackgroundColorAsync(darkMode ? '#222' : '#FFF');
   }, [darkMode]);
 
-  const insets = useSafeAreaInsets();
-
-  const generateId = () =>
-    Date.now().toString(36) + Math.random().toString(36).slice(2);
-
+  const generateId = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+  
   function shuffleArray<T>(a: T[]): T[] {
     const arr = a.slice();
     for (let i = arr.length - 1; i > 0; i--) {
@@ -137,98 +123,167 @@ export default function App() {
     }
     return arr;
   }
+  
+  function normalizeString(str: string): string {
+    return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
 
   function balanceTeamsByWeight(activePlayers: Player[], size: number): Team[] {
     const n = activePlayers.length;
     if (n === 0) return [];
-
     const numTeams = Math.floor(n / size);
     if (numTeams === 0) {
-      Alert.alert("Jogadores Insuficientes", `São necessários pelo menos ${size} jogadores para formar um time.`);
+      Alert.alert("Jogadores Insuficientes", `São necessários pelo menos ${size} jogadores.`);
       return [];
     }
-
-    // CORRIGIDO AQUI
     const teamsState: Team[] = Array.from({ length: numTeams }, () => ({ players: [], total: 0 }));
-
     const pool = shuffleArray(activePlayers.slice()).sort((a, b) => b.weight - a.weight);
-
     for (const p of pool) {
       let bestIdx = -1;
       let bestTotal = Infinity;
       for (let i = 0; i < numTeams; i++) {
         const t = teamsState[i];
-        // CORRIGIDO AQUI
         if (t.players.length < size && t.total < bestTotal) {
           bestTotal = t.total;
           bestIdx = i;
         }
       }
-      
       if (bestIdx !== -1) {
-        // CORRIGIDO AQUI
         teamsState[bestIdx].players.push(p);
         teamsState[bestIdx].total += p.weight;
       }
     }
-    
-    // CORRIGIDO AQUI
     return teamsState.filter((t) => t.players.length > 0);
   }
 
   function balanceTeamsByWinRate(activePlayers: Player[], size: number): Team[] {
     const n = activePlayers.length;
     if (n === 0) return [];
-
     const numTeams = Math.floor(n / size);
     if (numTeams === 0) {
-      Alert.alert("Jogadores Insuficientes", `São necessários pelo menos ${size} jogadores para formar um time.`);
+      Alert.alert("Jogadores Insuficientes", `São necessários pelo menos ${size} jogadores.`);
       return [];
     }
-
-    // CORRIGIDO AQUI
     const teamsState: Team[] = Array.from({ length: numTeams }, () => ({ players: [], total: 0 }));
-
-    const playerPool = activePlayers.map(player => {
-      const winRate = calculateWinRate(player.name);
-      return {
-        ...player,
-        winRate: winRate === null ? 50 : winRate,
-      };
-    });
-
+    const playerPool = activePlayers.map(player => ({
+      ...player,
+      winRate: calculateWinRate(player.id) ?? 50,
+    }));
     const sortedPool = shuffleArray(playerPool).sort((a, b) => b.winRate - a.winRate);
-
     for (const p of sortedPool) {
       let bestIdx = -1;
       let bestTotal = Infinity;
       for (let i = 0; i < numTeams; i++) {
         const t = teamsState[i];
-        // CORRIGIDO AQUI
         if (t.players.length < size && t.total < bestTotal) {
           bestTotal = t.total;
           bestIdx = i;
         }
       }
       if (bestIdx !== -1) {
-        // CORRIGIDO AQUI
         teamsState[bestIdx].players.push(p);
         teamsState[bestIdx].total += p.winRate;
       }
     }
-
-    // CORRIGIDO AQUI
     return teamsState.filter((t) => t.players.length > 0);
+  }
+
+  function calculateWinRate(playerId: string): number | null {
+    let gamesPlayed = 0;
+    let gamesWon = 0;
+    for (const match of matchHistory) {
+      let playedInMatch = false;
+      match.teams.forEach((team, index) => {
+        if (team.players.some(p => p.id === playerId)) {
+          playedInMatch = true;
+          if (index === match.winnerTeamIndex) gamesWon++;
+        }
+      });
+      if (playedInMatch) gamesPlayed++;
+    }
+    if (gamesPlayed === 0) return null;
+    return Math.round((gamesWon / gamesPlayed) * 100);
+  }
+
+  function handleDraw() {
+    const activePlayers = sessionPlayers.filter(p => p.active);
+    if (activePlayers.length === 0) {
+      Alert.alert("Sem jogadores ativos", "Ative os jogadores na tela 'Editar Lista'.");
+      return;
+    }
+    const distributed = balanceMode === 'level'
+      ? balanceTeamsByWeight(activePlayers, teamSize)
+      : balanceTeamsByWinRate(activePlayers, teamSize);
+    
+    const drawnPlayerIds = new Set(distributed.flatMap(team => team.players.map(p => p.id)));
+    
+    const inactivePlayerIdsInSession = sessionPlayers.filter(p => !p.active).map(p => p.id);
+    const leftoversFromDrawIds = activePlayers
+      .filter(player => !drawnPlayerIds.has(player.id))
+      .map(player => player.id);
+    
+    const finalLeftoverIds = [...new Set([...inactivePlayerIdsInSession, ...leftoversFromDrawIds])];
+    
+    setTeams(distributed);
+    setLeftoverPlayerIds(finalLeftoverIds);
+    setWinnerIndex(null);
+    setDisplayedBalanceMode(balanceMode);
+    setScreen("draw");
+  }
+
+  function handleEndMatchAndSubstitute() {
+    if (winnerIndex === null) {
+      Alert.alert("Selecione um vencedor", "Marque o time vencedor.");
+      return;
+    }
+    const finishedMatch: Match = {
+      id: new Date().toISOString(), date: new Date().toISOString(), teams: teams, winnerTeamIndex: winnerIndex,
+    };
+    setMatchHistory(prev => [finishedMatch, ...prev]);
+    
+    const playersToEnterIds = leftoverPlayerIds;
+    if (playersToEnterIds.length === 0) {
+      setPlayersWhoJustEnteredIds(new Set());
+      setTeams([]);
+      setWinnerIndex(null);
+      return;
+    }
+    
+    const losingTeamIndex = winnerIndex === 0 ? 1 : 0;
+    const losingTeam = teams[losingTeamIndex];
+    const losingTeamPlayerIds = losingTeam.players.map(p => p.id);
+    const eligibleToLeaveIds = losingTeamPlayerIds.filter(id => !playersWhoJustEnteredIds.has(id));
+    
+    if (eligibleToLeaveIds.length < playersToEnterIds.length) {
+      Alert.alert("Não é possível substituir", "O time perdedor não tem jogadores suficientes que possam sair.");
+      setTeams([]);
+      setWinnerIndex(null);
+      setPlayersWhoJustEnteredIds(new Set());
+      return;
+    }
+    
+    const playersToLeaveIds = shuffleArray(eligibleToLeaveIds).slice(0, playersToEnterIds.length);
+    
+    setAllPlayers(prev =>
+      prev.map(player => {
+        if (playersToLeaveIds.includes(player.id)) return { ...player, active: false };
+        if (playersToEnterIds.includes(player.id)) return { ...player, active: true };
+        return player;
+      })
+    );
+    
+    setLeftoverPlayerIds(playersToLeaveIds);
+    setPlayersWhoJustEnteredIds(new Set(playersToEnterIds));
+    setTeams([]);
+    setWinnerIndex(null);
   }
 
   function importNames() {
     const lines = rawInput.split(/\r?\n|,|;/).map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return;
-
     const newPlayers: Player[] = [];
     const newSelectedIds = new Set(selectedPlayerIds);
     const existingNames = new Set(allPlayers.map(p => p.name.toLowerCase()));
-
     lines.forEach(line => {
       const parts = line.split(/\s+/);
       let weight: 1 | 2 | 3 = 2;
@@ -244,7 +299,6 @@ export default function App() {
         newSelectedIds.add(newPlayer.id);
       }
     });
-
     if (newPlayers.length > 0) {
       setAllPlayers(prev => [...prev, ...newPlayers]);
       setSelectedPlayerIds(newSelectedIds);
@@ -257,95 +311,6 @@ export default function App() {
     setAllPlayers(prev =>
       prev.map(p => (p.id === id ? { ...p, active: !p.active } : p))
     );
-  }
-
-  function handleDraw() {
-    const activePlayers = sessionPlayers.filter((p) => p.active);
-
-    if (activePlayers.length === 0) {
-      Alert.alert("Sem jogadores ativos", "Vá para a tela 'Editar Lista' e ative os jogadores.");
-      return;
-    }
-
-    // A memória de imunidade não é mais tocada aqui.
-    
-    const distributed = balanceMode === 'level'
-      ? balanceTeamsByWeight(activePlayers, teamSize)
-      : balanceTeamsByWinRate(activePlayers, teamSize);
-    
-    const drawnPlayerNames = new Set(distributed.flatMap(team => team.players.map(p => p.name)));
-    
-    const inactivePlayersInSession = sessionPlayers.filter(p => !p.active).map(p => p.name);
-    const leftoversFromDraw = activePlayers
-      .filter(player => !drawnPlayerNames.has(player.name))
-      .map(player => player.name);
-    
-    const finalLeftovers = [...new Set([...inactivePlayersInSession, ...leftoversFromDraw])];
-    
-    setTeams(distributed);
-    setLeftoverPlayers(finalLeftovers);
-    setWinnerIndex(null);
-    setDisplayedBalanceMode(balanceMode);
-    setScreen("draw");
-  }
-
-  function handleEndMatchAndSubstitute() {
-    if (winnerIndex === null) {
-      Alert.alert("Selecione um vencedor", "Marque o time vencedor antes de finalizar a partida.");
-      return;
-    }
-    
-    // 1. Salva a partida no histórico
-    const finishedMatch: Match = {
-      id: new Date().toISOString(), date: new Date().toISOString(), teams: teams, winnerTeamIndex: winnerIndex,
-    };
-    setMatchHistory(prevHistory => [finishedMatch, ...prevHistory]);
-
-    // 2. Prepara os dados para a substituição
-    const playersToEnter = leftoverPlayers;
-
-    // Se não há ninguém para entrar, apenas reseta a imunidade e limpa a tela
-    if (playersToEnter.length === 0) {
-      setPlayersWhoJustEntered(new Set());
-      setTeams([]);
-      setWinnerIndex(null);
-      return;
-    }
-    
-    const losingTeamIndex = winnerIndex === 0 ? 1 : 0;
-    const losingTeam = teams[losingTeamIndex];
-    
-    const losingTeamPlayerNames = losingTeam.players.map(p => p.name);
-    const eligibleToLeave = losingTeamPlayerNames.filter(name => !playersWhoJustEntered.has(name));
-    const numToSubstitute = playersToEnter.length;
-
-    if (eligibleToLeave.length < numToSubstitute) {
-      Alert.alert("Não é possível substituir", "O time perdedor não tem jogadores suficientes que possam sair. A partida foi salva no histórico. Faça um novo sorteio.");
-      setTeams([]);
-      setWinnerIndex(null);
-      setPlayersWhoJustEntered(new Set());
-      return;
-    }
-    
-    // A variável 'playersToLeave' é criada aqui...
-    const playersToLeave = shuffleArray(eligibleToLeave).slice(0, numToSubstitute);
-    
-    // ...e usada somente depois, o que é o correto.
-    setAllPlayers(prevAllPlayers =>
-      prevAllPlayers.map(player => {
-        if (playersToLeave.includes(player.name)) return { ...player, active: false };
-        if (playersToEnter.includes(player.name)) return { ...player, active: true };
-        return player;
-      })
-    );
-    
-    // 4. Atualiza os estados para a próxima rodada
-    setLeftoverPlayers(playersToLeave);
-    setPlayersWhoJustEntered(new Set(playersToEnter));
-
-    // 5. Limpa a tela
-    setTeams([]);
-    setWinnerIndex(null);
   }
 
   function deletePlayer(playerId: string) {
@@ -368,8 +333,8 @@ export default function App() {
 
   function openPlayerOptionsModal(player: Player) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const rate = calculateWinRate(player.name);
-    setPlayerWinRate(rate);
+    const stats = calculatePlayerStats(player.id, matchHistory);
+    setPlayerWinRate(stats.winRate);
     setSelectedPlayerId(player.id);
     setIsModalVisible(true);
   }
@@ -385,8 +350,8 @@ export default function App() {
   }
 
   function openEditNameModal() {
-    setIsModalVisible(false); // Fecha o modal de opções
-    setIsEditNameModalVisible(true); // Abre o modal de edição de nome
+    setIsModalVisible(false);
+    setIsEditNameModalVisible(true);
   }
 
   function updatePlayerName(playerId: string, newName: string) {
@@ -396,50 +361,24 @@ export default function App() {
   }
 
   function deleteAllPlayers() {
-    Alert.alert(
-      "Apagar Todos os Jogadores?",
-      "Esta ação é permanente e não pode ser desfeita. Tem certeza?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Sim, Apagar Tudo",
-          style: "destructive",
-          onPress: () => {
-            setAllPlayers([]);
-            setSelectedPlayerIds(new Set());
-          },
-        },
-      ]
-    );
+    Alert.alert("Apagar Todos os Jogadores?", "Esta ação é permanente. Tem certeza?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Sim, Apagar Tudo", style: "destructive", onPress: () => {
+          setAllPlayers([]);
+          setSelectedPlayerIds(new Set());
+        }},
+    ]);
   }
-
-  function normalizeString(str: string): string {
-    return str
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
+  
   function handleCycleWeight(player: Player) {
     const currentWeight = player.weight;
-    // Lógica para ciclar: 1 -> 2, 2 -> 3, 3 -> 1
     const nextWeight = (currentWeight % 3) + 1 as 1 | 2 | 3;
-    
-    // Chama a função original com os argumentos corretos
     updatePlayerWeight(player.id, nextWeight);
   }
 
   function removePlayerPhoto(playerId: string) {
     setAllPlayers(prevPlayers => 
-      prevPlayers.map(p => {
-        if (p.id === playerId) {
-          return { ...p, photoUri: undefined };
-        }
-        return p;
-      })
+      prevPlayers.map(p => (p.id === playerId ? { ...p, photoUri: undefined } : p))
     );
   }
 
@@ -452,102 +391,37 @@ export default function App() {
     }
     setExpandedSections(newSet);
   }
-
-  function calculateWinRate(playerName: string) {
-    let gamesPlayed = 0;
-    let gamesWon = 0;
-
-    // Itera sobre cada partida no histórico
-    for (const match of matchHistory) {
-      let playedInMatch = false;
-
-      // Verifica se o jogador estava em algum dos times da partida
-      match.teams.forEach((team, index) => {
-        if (team.players.some(p => p.name === playerName)) {
-          playedInMatch = true;
-          // Se ele estava no time vencedor, incrementa as vitórias
-          if (index === match.winnerTeamIndex) {
-            gamesWon++;
-          }
-        }
-      });
-
-      if (playedInMatch) {
-        gamesPlayed++;
-      }
-    }
-
-    // Se o jogador nunca jogou, retorna null para não mostrar nada
-    if (gamesPlayed === 0) {
-      return null;
-    }
-
-    // Calcula a porcentagem e arredonda
-    return Math.round((gamesWon / gamesPlayed) * 100);
-  }
-
+  
   function deleteMatchHistory() {
-    // Mostra um alerta de confirmação
-    Alert.alert(
-      "Apagar Histórico de Partidas?",
-      "Esta ação é permanente e não pode ser desfeita.",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel",
-        },
-        {
-          text: "Sim, Apagar Histórico",
-          style: "destructive",
-          onPress: () => {
-            // Se o usuário confirmar, limpa o estado do histórico
-            setMatchHistory([]);
-            // O useEffect salvará a lista vazia automaticamente
-          },
-        },
-      ]
-    );
+    Alert.alert("Apagar Histórico de Partidas?", "Esta ação é permanente.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Sim, Apagar Histórico", style: "destructive", onPress: () => setMatchHistory([]) },
+    ]);
   }
 
   function deleteSingleMatch(matchId: string) {
-    Alert.alert(
-      "Apagar Partida?",
-      "Tem certeza que deseja apagar esta partida do histórico?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Apagar",
-          style: "destructive",
-          onPress: () => {
-            setMatchHistory(prev => prev.filter(match => match.id !== matchId));
-          },
-        },
-      ]
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert("Apagar Partida?", "Tem certeza?", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Apagar", style: "destructive", onPress: () => setMatchHistory(prev => prev.filter(match => match.id !== matchId)) },
+    ]);
   }
 
   function deleteMatchesByDate(dateTitle: string) {
-    Alert.alert(
-      `Apagar partidas de ${dateTitle}?`,
-      "Esta ação é permanente e apagará todos os jogos deste dia.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Sim, Apagar",
-          style: "destructive",
-          onPress: () => {
-            setMatchHistory(prev =>
-              prev.filter(match => {
-                const matchDate = new Date(match.date).toLocaleDateString('pt-BR', {
-                  day: '2-digit', month: 'long', year: 'numeric',
-                });
-                return matchDate !== dateTitle;
-              })
-            );
-          },
-        },
-      ]
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    Alert.alert(`Apagar partidas de ${dateTitle}?`, "Esta ação é permanente.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Sim, Apagar", style: "destructive", onPress: () => {
+          setMatchHistory(prev =>
+            prev.filter(match => {
+              const matchDate = new Date(match.date).toLocaleDateString('pt-BR', {
+                day: '2-digit', month: 'long', year: 'numeric',
+              });
+              return matchDate !== dateTitle;
+            })
+          );
+        }},
+    ]);
   }
 
   function cycleSortMode() {
@@ -557,9 +431,9 @@ export default function App() {
     } else if (sortMode === 'level') {
       setSortMode('winrate');
     } else if (sortMode === 'winrate') {
-      setSortMode('session'); // Adiciona o novo modo
+      setSortMode('session');
     } else {
-      setSortMode('alphabetical'); // Volta para o início
+      setSortMode('alphabetical');
     }
   }
 
@@ -569,38 +443,23 @@ export default function App() {
       alert("É necessária a permissão para acessar suas fotos!");
       return;
     }
-
     const pickerResult = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
     });
-
-    if (pickerResult.canceled) {
-      return;
-    }
-
+    if (pickerResult.canceled) return;
     const tempUri = pickerResult.assets[0].uri;
     const fileName = `${playerToUpdate.id}.jpg`;
     const permanentUri = FileSystem.documentDirectory + fileName;
-
     try {
-      await FileSystem.copyAsync({
-        from: tempUri,
-        to: permanentUri,
-      });
-
-      // O truque: adicionamos um timestamp à URI para forçar a imagem a recarregar
+      await FileSystem.copyAsync({ from: tempUri, to: permanentUri });
       const cacheBustedUri = `${permanentUri}?t=${new Date().getTime()}`;
-
-      // Atualiza o estado com a nova URI "cache-busted"
       setAllPlayers(prevPlayers => 
         prevPlayers.map(p => 
           p.id === playerToUpdate.id ? { ...p, photoUri: cacheBustedUri } : p
         )
       );
-      // --- FIM DA CORREÇÃO ---
-
     } catch (error) {
       console.error("Erro ao copiar a imagem:", error);
     }
@@ -612,31 +471,24 @@ export default function App() {
   );
   
   const filteredPlayers = useMemo(() => {
-    // 1. Primeiro, filtra todos os jogadores com base na busca
     const filteredBySearch = allPlayers.filter(p => 
       normalizeString(p.name).includes(normalizeString(searchQuery))
     );
-
-    // 2. Depois, aplica a lógica de ordenação sobre o resultado filtrado
     switch (sortMode) {
       case 'level':
         return filteredBySearch.sort((a, b) => b.weight - a.weight);
       case 'winrate':
         return filteredBySearch.sort((a, b) => {
-          const rateA = calculateWinRate(a.name) ?? -1;
-          const rateB = calculateWinRate(b.name) ?? -1;
+          const rateA = calculatePlayerStats(a.id, matchHistory).winRate ?? -1;
+          const rateB = calculatePlayerStats(b.id, matchHistory).winRate ?? -1;
           return rateB - rateA;
         });
-      // NOVO MODO 'SESSION'
       case 'session':
         return filteredBySearch.sort((a, b) => {
           const aIsSelected = selectedPlayerIds.has(a.id);
           const bIsSelected = selectedPlayerIds.has(b.id);
-          // Se 'b' está selecionado e 'a' não, 'b' vem primeiro.
           if (bIsSelected && !aIsSelected) return 1;
-          // Se 'a' está selecionado e 'b' não, 'a' vem primeiro.
           if (aIsSelected && !bIsSelected) return -1;
-          // Se ambos estão selecionados (ou não), ordena por nome.
           return a.name.localeCompare(b.name);
         });
       case 'alphabetical':
@@ -658,31 +510,93 @@ export default function App() {
   const historySections = useMemo(() => {
     const grouped = matchHistory.reduce((acc, match) => {
       const date = new Date(match.date).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
+        day: '2-digit', month: 'long', year: 'numeric',
       });
-      if (!acc[date]) {
-        acc[date] = [];
-      }
+      if (!acc[date]) acc[date] = [];
       acc[date].push(match);
       return acc;
     }, {} as Record<string, Match[]>);
-
     return Object.entries(grouped).map(([date, matches]) => ({
       title: date,
       data: matches,
     }));
   }, [matchHistory]);
   
-  // --- Renderização ---
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background, paddingTop: StatusBar.currentHeight || 0 }]}
     >
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-
       <View style={{ flex: 1 }}>
+        
+        {screen === "players" && (
+          <View style={styles.screen}>
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={[styles.searchInput, { flex: 1, backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.cardInactive }]}
+                placeholder="Buscar jogador..."
+                placeholderTextColor={theme.placeholder}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              <TouchableOpacity
+                style={[styles.sortButton, { backgroundColor: theme.accentGreen, borderColor: theme.accentGreen }]}
+                onPress={cycleSortMode}
+              >
+                {sortMode === 'alphabetical' && <SortAlphaIcon fill={theme.text} width={24} height={24} />}
+                {sortMode === 'level' && <SortLevelIcon stroke={theme.text} width={24} height={24} />}
+                {sortMode === 'winrate' && <SortWinRateIcon stroke={theme.text} width={24} height={24} />}
+                {sortMode === 'session' && <SortSessionIcon stroke={theme.text} width={24} height={24} />}
+              </TouchableOpacity>
+            </View>
+            <View style={[styles.addContainer, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+              <TouchableOpacity
+                  style={styles.dropdownHeader}
+                  onPress={() => setShowInput(!showInput)}
+              >
+                  <Text style={[styles.subheading, { color: theme.text }]}>Adicionar novos jogadores</Text>
+                  <Text style={[styles.arrow, { color: theme.text }]}>{showInput ? "▲" : "▼"}</Text>
+              </TouchableOpacity>
+              {showInput && (
+                  <View style={styles.dropdownContent}>
+                      <TextInput
+                          style={[styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                          multiline
+                          placeholder={"Ex: João 3\nPedro\nnome e nível (1, 2 ou 3)"}
+                          placeholderTextColor={theme.placeholder}
+                          value={rawInput}
+                          onChangeText={setRawInput}
+                      />
+                      <TouchableOpacity
+                          style={[styles.button, { backgroundColor: theme.accentGreen, marginTop: 8 }]}
+                          onPress={importNames}
+                      >
+                          <Text style={[styles.buttonText, { color: theme.primaryText }]}>Adicionar jogadores</Text>
+                      </TouchableOpacity>
+                  </View>
+              )}
+            </View>
+            <FlatList
+              data={filteredPlayers}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item }) => (
+                <PlayerCard
+                  player={item}
+                  darkMode={darkMode}
+                  onToggleActive={() => {}}
+                  onLongPress={openPlayerOptionsModal}
+                  variant="list"
+                  selectable={true}
+                  isSelected={selectedPlayerIds.has(item.id)}
+                  onSelect={togglePlayerSelection}
+                  matchHistory={matchHistory}
+                />
+              )}
+            />
+          </View>
+        )}
+
         {screen === "edit" && (
           <View style={styles.screen}>
             {sessionPlayers.length === 0 ? (
@@ -695,18 +609,19 @@ export default function App() {
                 </Text>
               </View>
             ) : (
-              // Usando ScrollView para permitir as duas listas sem conflito de rolagem
-              <ScrollView showsVerticalScrollIndicator={false}> 
-                <Text style={[styles.subheading, { color: theme.text, marginTop: 12, marginBottom: 8 }]}>
-                  Jogadores ativos na partida
-                </Text>
-                {/* CORREÇÃO: Primeira FlatList apenas para jogadores ATIVOS */}
+              // A nova lista única e ordenada
+              <View style={{ flex: 1, marginTop: 8 }}>
                 <FlatList
-                  data={sessionPlayers.filter((p) => p.active)}
+                  data={
+                    [...sessionPlayers].sort((a, b) => {
+                      if (a.active && !b.active) return -1;
+                      if (!a.active && b.active) return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                  }
                   keyExtractor={(item) => item.id}
-                  numColumns={2}
-                  scrollEnabled={false} // Desabilita a rolagem da FlatList interna
-                  columnWrapperStyle={{ marginBottom: 8 }}
+                  numColumns={3}
+                  showsVerticalScrollIndicator={false}
                   renderItem={({ item }) => (
                     <PlayerCard
                       player={item}
@@ -714,72 +629,68 @@ export default function App() {
                       onToggleActive={toggleActive}
                       onLongPress={openPlayerOptionsModal}
                       variant="grid"
+                      matchHistory={matchHistory}
                     />
                   )}
+                  contentContainerStyle={{ paddingBottom: 20, paddingTop: 10 }}
+                  ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+                  columnWrapperStyle={{ gap: 0.5 }}
+                  
+                  onContentSizeChange={(contentWidth, contentHeight) => {
+                    if (contentHeight < layoutHeight) {
+                      setFadeHeight(0);
+                    }
+                  }}
+                  
+                  onLayout={(event) => {
+                    const { height } = event.nativeEvent.layout;
+                    setLayoutHeight(height);
+                  }}
+                  
+                  onScroll={({ nativeEvent }) => {
+                    const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+                    const maxFadeHeight = 60;
+                    const distanceFromBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+                    const newHeight = Math.max(30, Math.min(maxFadeHeight, distanceFromBottom));
+                    setFadeHeight(newHeight);
+                  }}
+                  scrollEventThrottle={16}
                 />
 
-                {/* CORREÇÃO: Segunda FlatList apenas para jogadores INATIVOS */}
-                {sessionPlayers.some((p) => !p.active) && (
-                    <FlatList
-                        data={sessionPlayers.filter((p) => !p.active)}
-                        keyExtractor={(item) => item.id}
-                        numColumns={3} // Mantendo 3 colunas para inativos, como no original
-                        scrollEnabled={false} // Desabilita a rolagem
-                        columnWrapperStyle={{ marginBottom: 8 }}
-                        ListHeaderComponent={() => (
-                        <View style={styles.titleRow}>
-                            <Text style={[styles.subheading, { color: theme.text }]}>
-                            Jogadores desabilitados
-                            </Text>
-                            <TouchableOpacity
-                            onPress={() => {
-                              Alert.alert("Reabilitar Jogadores", "Tem certeza que deseja reabilitar todos os jogadores desabilitados?", [
-                                { text: "Cancelar", style: "cancel" },
-                                { text: "Reabilitar", onPress: () => { 
-                                // Reabilita todos os jogadores inativos
-                                const inactiveIds = sessionPlayers.filter(p => !p.active).map(p => p.id);
-                                setAllPlayers(prev => prev.map(p => inactiveIds.includes(p.id) ? { ...p, active: true } : p));
-                                } },
-                              ]);
-                            }}
-                            >
-                            <Text style={{ color: '#0a84ff', fontWeight: "bold", fontSize: 24 }}>+</Text>
-                            </TouchableOpacity>
-                        </View>
-                        )}
-                        renderItem={({ item }) => (
-                            <PlayerCard
-                                player={item}
-                                darkMode={darkMode}
-                                onToggleActive={toggleActive}
-                                onLongPress={openPlayerOptionsModal}
-                                variant="grid"
-                            />
-                        )}
-                    />
-                )}
-              </ScrollView>
-            )}
-            <View style={styles.actionRow}>
-              <View style={styles.sliderContainer}>
-                <TeamSizeSlider
-                  value={teamSize}
-                  onValueChange={setTeamSize}
-                  darkMode={darkMode}
+                <LinearGradient
+                  colors={[theme.background, `${theme.background}00`]}
+                  style={styles.topFadeEffect}
+                  pointerEvents="none"
                 />
+
+                {fadeHeight > 0 && (
+                  <LinearGradient
+                    colors={[`${theme.background}00`, theme.background]}
+                    style={[styles.fadeEffect, { height: fadeHeight }]}
+                    pointerEvents="none"
+                  />
+                )}
               </View>
+            )}
+
+            {/* O rodapé com o slider e o contador */}
+            <View style={styles.editFooter}>
+              <TeamSizeSlider
+                value={teamSize}
+                onValueChange={setTeamSize}
+                darkMode={darkMode}
+              />
+              <Text style={[styles.hint, { color: theme.placeholder, textAlign: 'center' }]}>
+                Jogadores ativos: {activeCount}
+              </Text>
             </View>
-            <Text style={[styles.hint, { color: theme.placeholder }]}>
-              Jogadores ativos: {activeCount} • Tamanho selecionado: {teamSize}
-            </Text>
           </View>
         )}
 
         {screen === "draw" && (
-          // O container principal da tela, com flex: 1
           <View style={styles.screen}>
             
-            {/* 1. CONTAINER DO CONTEÚDO - A chave é este `flex: 1` */}
+            {/* 1. CONTAINER DO CONTEÚDO - com flex: 1, ele empurra o rodapé para baixo */}
             <View style={{ flex: 1 }}>
               {teams.length === 0 ? (
                 // Mensagem de "Ainda não foi sorteado"
@@ -793,8 +704,8 @@ export default function App() {
                 <CourtView
                   teams={teams}
                   darkMode={darkMode}
-                  winnerIndex={winnerIndex} // Passa o índice do vencedor
-                  onSelectWinner={(index) => setWinnerIndex(index === winnerIndex ? null : index)} // Passa a função de clique
+                  winnerIndex={winnerIndex}
+                  onSelectWinner={(index) => setWinnerIndex(index === winnerIndex ? null : index)}
                 />
               ) : (
                 // A lista de times
@@ -815,9 +726,9 @@ export default function App() {
               )}
             </View>
 
-            {/* 2. RODAPÉ - agora ele é empurrado para baixo pelo container acima */}
+            {/* 2. RODAPÉ - agora ele fica fixo no fundo */}
             <View style={styles.drawFooter}>
-
+              
               {/* Botões extras que só aparecem DEPOIS do sorteio */}
               {teams.length > 0 && (
                 <View style={[styles.actionsRow, { marginBottom: 8 }]}>
@@ -866,112 +777,73 @@ export default function App() {
           </View>
         )}
 
-        {screen === "players" && (
-          <View style={styles.screen}>
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={[styles.searchInput, { flex: 1, backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                placeholder="Buscar jogador..."
-                placeholderTextColor={theme.placeholder}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              <TouchableOpacity
-                style={[styles.sortButton, { backgroundColor: theme.card, borderColor: theme.border }]}
-                onPress={cycleSortMode}
-              >
-                {sortMode === 'alphabetical' && <SortAlphaIcon fill={theme.text} width={24} height={24} />}
-                {sortMode === 'level' && <SortLevelIcon stroke={theme.text} width={24} height={24} />}
-                {sortMode === 'winrate' && <SortWinRateIcon stroke={theme.text} width={24} height={24} />}
-                {sortMode === 'session' && <SortSessionIcon stroke={theme.text} width={24} height={24} />}
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.addContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <TouchableOpacity
-                  style={styles.dropdownHeader}
-                  onPress={() => setShowInput(!showInput)}
-              >
-                  <Text style={[styles.subheading, { color: theme.text }]}>Adicionar novos jogadores</Text>
-                  <Text style={[styles.arrow, { color: theme.text }]}>{showInput ? "▲" : "▼"}</Text>
-              </TouchableOpacity>
-
-              {showInput && (
-                  <View style={styles.dropdownContent}>
-                      <TextInput
-                          style={[styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
-                          multiline
-                          placeholder={"Ex: João 3\nPedro\nnome e nível (1, 2 ou 3)"}
-                          placeholderTextColor={theme.placeholder}
-                          value={rawInput}
-                          onChangeText={setRawInput}
-                      />
-                      <TouchableOpacity
-                          style={[styles.button, { backgroundColor: theme.primary, marginTop: 8 }]}
-                          onPress={importNames}
-                      >
-                          <Text style={[styles.buttonText, { color: theme.primaryText }]}>Adicionar jogadores</Text>
-                      </TouchableOpacity>
-                  </View>
-              )}
-            </View>
-            <FlatList
-              data={filteredPlayers}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <PlayerCard
-                  player={item}
-                  darkMode={darkMode}
-                  onToggleActive={() => {}} // Não usado aqui
-                  onLongPress={openPlayerOptionsModal}
-                  variant="list"
-                  selectable={true}
-                  isSelected={selectedPlayerIds.has(item.id)}
-                  onSelect={togglePlayerSelection}
-                />
-              )}
-            />
-          </View>
-        )}
-
         {screen === "history" && (
           <View style={styles.screen}>
-            <Text style={[styles.heading, { color: theme.text, marginBottom: 16 }]}>Histórico de Partidas</Text>
-            {historySections.length === 0 ? (
-              <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-                <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>Nenhuma partida foi salva ainda.</Text>
-              </View>
+            {selectedDate === null ? (
+              // TELA 1: LISTA DE DIAS COM PARTIDAS <>
+              <>
+                <TextInput
+                  style={[styles.searchInput, { backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.cardInactive, marginBottom: 16 }]}
+                  placeholder="Buscar por data (ex: 25 de agosto...)"
+                  placeholderTextColor={theme.placeholder}
+                  value={historySearchQuery}
+                  onChangeText={setHistorySearchQuery} 
+                />
+                {historySections.length === 0 ? (
+                  <view style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                    <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>Nenhuma partida foi salva ainda.</Text>
+                  </view>
+                ) : (
+                  <FlatList
+                    data={historySections.filter(section =>
+                      section.title.toLowerCase().includes(historySearchQuery.toLowerCase())
+                    )}
+                    keyExtractor={(item) => item.title}
+                    showsVerticalScrollIndicator={false}
+                    renderItem={({ item }) => (
+                      <HistoryDayCard
+                        date={item.title}
+                        matchCount={item.data.length}
+                        onPress={() => setSelectedDate(item.title)}
+                        onLongPress={() => deleteMatchesByDate(item.title)} 
+                        darkMode={darkMode}
+                      />
+                    )}
+                  />
+                )}
+              </>
             ) : (
-              <SectionList
-                sections={historySections}
-                keyExtractor={(item) => item.id}
-                renderSectionHeader={({ section: { title } }) => {
-                  const isExpanded = expandedSections.has(title);
-                  return (
-                    <TouchableOpacity 
-                      style={[styles.sectionHeader, { backgroundColor: theme.border }]} 
-                      onPress={() => toggleSection(title)}
-                      onLongPress={() => {
-                        deleteMatchesByDate(title)
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                      }}
-                    >
-                      <Text style={[styles.subheading, { color: theme.text }]}>{title}</Text>
-                      <Text style={[styles.arrow, { color: theme.text }]}>{isExpanded ? "▲" : "▼"}</Text>
-                    </TouchableOpacity>
-                  );
-                }}
-                renderItem={({ item, section }) => {
-                  // Só renderiza os itens da seção se ela estiver expandida
-                  if (!expandedSections.has(section.title)) {
-                    return null;
-                  }
-                  return <MatchHistoryCard
-                    match={item} 
-                    darkMode={darkMode}
-                    onDelete={deleteSingleMatch}
-                  />;
-                }}
-              />
+              // TELA 2: DETALHES DAS PARTIDAS DE UM DIA
+              <>
+                <View style={styles.backButton}>
+                  {/* 1. Apenas o ícone é envolto em um TouchableOpacity */}
+                  <TouchableOpacity
+                    onPress={() => setSelectedDate(null)}
+                    style={{ padding: 4 }}
+                  >
+                    <ArrowLeftIcon stroke={theme.text} width={26} height={26} />
+                  </TouchableOpacity>
+                  <Text style={[styles.heading, { color: theme.text, marginLeft: 10, marginTop: 6 }]}>
+                    {selectedDate}
+                  </Text>
+                </View>
+                
+                <FlatList
+                  data={historySections.find(s => s.title === selectedDate)?.data || []}
+                  keyExtractor={(item) => item.id}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item, index }) => (
+                    <MatchDetailCard
+                      match={item}
+                      matchNumber={index + 1}
+                      darkMode={darkMode}
+                      onDelete={deleteSingleMatch}
+                      animationSpeed={100}
+                    />
+                  )}
+                  contentContainerStyle={{ paddingTop: 16 }}
+                />
+              </>
             )}
           </View>
         )}
@@ -979,7 +851,7 @@ export default function App() {
         {screen === "settings" && (
             <View style={[styles.screen, { justifyContent: 'center', alignItems: 'center' }]}>
                 <Text style={[styles.heading, { color: theme.text, marginBottom: 20 }]}>Configurações</Text>
-                <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary, paddingVertical: 12, paddingHorizontal: darkMode ? 56 : 50 }]} onPress={() => setDarkMode(!darkMode)}>
+                <TouchableOpacity style={[styles.button, { backgroundColor: theme.primary, paddingVertical: 12, paddingHorizontal: darkMode ? 55 : 50 }]} onPress={() => setDarkMode(!darkMode)}>
                     <Text style={[styles.buttonText, { color: theme.primaryText }]}>{darkMode ? 'Ativar Modo Claro' : 'Ativar Modo Escuro'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -993,12 +865,11 @@ export default function App() {
             </View>
         )}
 
-        {/* 6. Usando o BottomNav */}
         <BottomNav
           activeScreen={screen}
           onScreenChange={setScreen}
           darkMode={darkMode} 
-          bottomInset={0}
+          bottomInset={insets.bottom}
         />
       </View>
 
@@ -1012,7 +883,7 @@ export default function App() {
         onEditName={openEditNameModal}
         onChangePhoto={pickImageAndUpdatePlayer}
         onRemovePhoto={removePlayerPhoto}
-        winRate={playerWinRate}
+        matchHistory={matchHistory}
       />
       <EditNameModal
         visible={isEditNameModalVisible}
@@ -1025,16 +896,14 @@ export default function App() {
   );
 }
 
-// 7. Os estilos restantes são apenas para layout
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    screen: { flex: 1, padding: 16, paddingBottom: 8 },
+    screen: { flex: 1, padding: 16, paddingBottom: 0 },
     heading: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
     subheading: { fontSize: 15, fontWeight: "600" },
     textArea: {
-      minHeight: 100,
+      minHeight: 60,
       borderWidth: 1,
-      borderColor: "#ddd",
       borderRadius: 8,
       padding: 10,
       textAlignVertical: "top",
@@ -1060,13 +929,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
     arrow: { fontSize: 18 },
-    actionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 'auto',
-      paddingVertical: 8,
-      gap: 8,
-    },
     sliderContainer: {
       flex: 1,
     },
@@ -1087,7 +949,7 @@ const styles = StyleSheet.create({
       alignItems: 'center',
     },
     leftoverText: {
-      color: '#8a6d3b', // Uma cor de texto escura para contraste
+      color: '#8a6d3b',
       fontWeight: '500',
       textAlign: 'center',
     },
@@ -1115,20 +977,21 @@ const styles = StyleSheet.create({
       marginBottom: 10,
     },
     toggleButton: {
-      flex: 1, // Ocupa 25% do espaço (1 de 4 partes)
+      flex: 1,
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
     },
     drawButton: {
-      flex: 3, // Ocupa 75% do espaço (3 de 4 partes)
+      flex: 3,
       borderRadius: 8,
       paddingVertical: 14,
       justifyContent: 'center',
       alignItems: 'center',
     },
     drawFooter: {
-      paddingTop: 8,
+      paddingTop: 4,
+      paddingBottom: 12,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -1141,7 +1004,6 @@ const styles = StyleSheet.create({
       marginBottom: 12,
     },
     searchInput: {
-      flex: 1, // Faz a caixa de busca se esticar
       height: 44,
       borderWidth: 1,
       borderRadius: 8,
@@ -1155,5 +1017,27 @@ const styles = StyleSheet.create({
       borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    editFooter: {
+      paddingTop: 8,
+    },
+    fadeEffect: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: 50, // A altura do efeito de degradê. Ajuste conforme seu gosto.
+    },
+    topFadeEffect: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      top: 0, // Posiciona no topo
+      height: 15, // Uma altura menor para o topo, ajuste se desejar
+    },
+    backButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8,
     },
 });

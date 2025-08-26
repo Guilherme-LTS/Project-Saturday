@@ -43,6 +43,7 @@ const NavButton = ({
   </TouchableOpacity>
 );
 
+const Separator = () => <View style={styles.separator} />;
 
 const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, darkMode, bottomInset }) => {
   const activeColor = '#0a84ff';
@@ -53,8 +54,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, dar
       style={[
         styles.bottomNav,
         {
-          backgroundColor: darkMode ? '#222' : '#fff',
-          borderColor: darkMode ? '#555' : '#eee',
+          backgroundColor: darkMode ? '#000' : '#fff', // Corrigido para preto
+          borderColor: darkMode ? '#333' : '#eee',
+          paddingBottom: 8 + bottomInset,
         },
       ]}
     >
@@ -66,6 +68,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ activeScreen, onScreenChange, dar
         activeColor={activeColor}
         inactiveColor={inactiveColor}
       />
+
       <NavButton
         IconComponent={IconShuffle}
         screenName="draw"
@@ -107,13 +110,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderTopWidth: 1,
     paddingTop: 2,
-    paddingBottom: 2,
+    paddingBottom: 52,
     justifyContent: 'space-around',
   },
   navBtn: {
     flex: 1,
     padding: 10,
     alignItems: 'center',
+  },
+  separator: {
+    width: 1,
+    height: '60%',
+    backgroundColor: '#333',
+    alignSelf: 'center',
   },
 });
 

@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-    Modal,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import useTheme from '../hooks/useTheme';
 import { Player } from '../types';
@@ -65,7 +65,7 @@ const EditNameModal: React.FC<EditNameModalProps> = ({
               </Text>
               
               <TextInput
-                style={[styles.textInput, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+                style={[styles.textInput, { backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.textBlack }]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Nome do jogador"
