@@ -5,7 +5,7 @@ import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { SafeAreaProvider } from 'react-native-safe-area-context'; // 1. Import the provider
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppNavigator from '../navigation/AppNavigator';
 import { useGameStore } from '../stores/gameStore';
@@ -38,12 +38,11 @@ export default function App() {
 
   // 2. Wrap the NavigationContainer with SafeAreaProvider
   return (
-    <SafeAreaProvider>
-      <NavigationContainer theme={darkMode ? DarkTheme : DefaultTheme}>
-        {/* Ensure AppNavigator is a navigator, not a custom tab bar */}
-        <AppNavigator />
-        <StatusBar style={darkMode ? "light" : "dark"} />
-      </NavigationContainer>
-    </SafeAreaProvider>
+      <SafeAreaProvider>
+        <NavigationContainer theme={darkMode ? DarkTheme : DefaultTheme}>
+          <AppNavigator />
+          <StatusBar style={darkMode ? "light" : "dark"} />
+        </NavigationContainer>
+      </SafeAreaProvider>
   );
 }

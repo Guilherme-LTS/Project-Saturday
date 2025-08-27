@@ -99,7 +99,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         styles.listCard,
         {
           backgroundColor: theme.card,
-          borderColor: theme.border,
+          borderColor: theme.cardInactive,
         },
         isInactive && !selectable && { opacity: 0.7 },
       ]}

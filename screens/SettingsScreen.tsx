@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import components
+import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import ExportModal from '../components/ExportModal';
 import ImportModal from '../components/ImportModal';
 
@@ -98,7 +99,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8 }]}>
+    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         
         {/* Data Management Section */}
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
           </Text>
           
           <TouchableOpacity
-            style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.border }]}
+            style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardInactive }]}
             onPress={() => setExportModalVisible(true)}
           >
             <View style={styles.settingLeft}>
@@ -125,7 +126,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.border }]}
+            style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardInactive }]}
             onPress={() => setImportModalVisible(true)}
           >
             <View style={styles.settingLeft}>

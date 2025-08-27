@@ -5,6 +5,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Component Imports
+import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
 import PlayerOptionsModal from '../components/PlayerOptionsModal';
@@ -91,7 +92,7 @@ export default function EditScreen() {
   };
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       {sessionPlayers.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>

@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TAB_BAR_HEIGHT } from '@/components/CustomTabBar';
 import EyeOffIcon from '../assets/icons/eye-off.svg';
 import EyeIcon from '../assets/icons/eye.svg';
 import CourtView from '../components/CourtView';
@@ -75,7 +76,7 @@ export default function DrawScreen() {
   };
 
   return (
-     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <View style={{ flex: 1 }}>
         {teams.length === 0 ? (
           <View style={styles.emptyContainer}>

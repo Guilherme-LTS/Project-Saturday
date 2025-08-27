@@ -4,6 +4,7 @@ import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ArrowLeftIcon from '../assets/icons/arrow-left.svg';
+import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import HistoryDayCard from '../components/HistoryDayCard';
 import MatchDetailCard from '../components/MatchDetailCard';
 import useTheme from '../hooks/useTheme';
@@ -79,7 +80,7 @@ export default function HistoryScreen() {
   }, [historySections, selectedDate]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8 }]}>
+    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       {selectedDate === null ? (
         <>
           <TextInput

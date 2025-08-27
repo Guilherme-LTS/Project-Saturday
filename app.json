@@ -5,8 +5,13 @@
     "scheme": "volleyballdraw",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/volleyball.png",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0D1117"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.yourname.volleyballdraw"
@@ -15,13 +20,14 @@
       "package": "com.yourname.volleyballdraw",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0D1117"
       },
       "userInterfaceStyle": "automatic",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#0D1117",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/images/icon.png"
     },
     "extra": {
       "eas": {
@@ -30,7 +36,8 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-splash-screen"
     ]
   }
 }

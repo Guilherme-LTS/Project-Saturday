@@ -14,17 +14,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGameStore } from '../stores/gameStore';
 
 // Corrected import name
-import EditNameModal from '../components/EditNameModal';
-import PlayerOptionsModal from '../components/PlayerOptionsModal';
-import { usePlayersStore } from '../stores/playersStore';
-import { useThemeStore } from '../stores/themeStore';
-
 import SortWinRateIcon from '../assets/icons/award.svg';
 import SortLevelIcon from '../assets/icons/bar-chart-2.svg';
 import SortAlphaIcon from '../assets/icons/sort-alpha.svg';
 import SortSessionIcon from '../assets/icons/sort-session.svg';
+import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
+import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
+import PlayerOptionsModal from '../components/PlayerOptionsModal';
 import useTheme from '../hooks/useTheme';
+import { usePlayersStore } from '../stores/playersStore';
+import { useThemeStore } from '../stores/themeStore';
 import { Player, SortMode } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
 
@@ -202,7 +202,7 @@ export default function PlayersScreen() {
   }, [allPlayers, searchQuery, sortMode, selectedPlayerIds, matchHistory, statsByPlayer]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8 }]}>
+    <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <View style={styles.searchContainer}>
         <TextInput
           style={[styles.searchInput, { flex: 1, backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.cardInactive }]}
@@ -232,7 +232,7 @@ export default function PlayersScreen() {
         {showInput && (
           <View style={styles.dropdownContent}>
             <TextInput
-              style={[styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.border }]}
+              style={[styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardInactive }]}
               multiline
               placeholder={"Ex: João 3\nPedro\nnome e nível (1, 2 ou 3)"}
               placeholderTextColor={theme.placeholder}

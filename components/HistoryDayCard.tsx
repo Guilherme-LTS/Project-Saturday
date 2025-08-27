@@ -16,7 +16,7 @@ const HistoryDayCard: React.FC<HistoryDayCardProps> = ({ date, matchCount, onPre
 
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.cardInactive }]}
       onPress={onPress}
       onLongPress={onLongPress}
       activeOpacity={0.7}
