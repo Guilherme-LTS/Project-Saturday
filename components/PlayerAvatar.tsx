@@ -14,7 +14,7 @@ interface PlayerAvatarProps {
 }
 
 const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ player, size, theme }) => {
-  if (!player) return null; // Retorna nulo se não houver jogador
+    if (!player) return null; // Retorna nulo se não houver jogador
 
   const hasPhoto = !!player.photoUri;
 
@@ -25,10 +25,10 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ player, size, theme }) => {
   };
 
   if (hasPhoto) {
-    return (
-      <Image
-        source={{ uri: player.photoUri }}
-        style={[avatarStyle, styles.image, { borderColor: theme.textBlack }]}
+      return (
+          <Image
+              source={{ uri: player.photoUri }}
+              style={[avatarStyle, styles.image, { borderColor: theme.textBlack }]}
       />
     );
   }

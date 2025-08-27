@@ -62,7 +62,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         {hasPhoto ? (
           <ImageBackground
             source={{ uri: player.photoUri }}
-            style={styles.gridImageBackground}
+              style={styles.gridImageBackground}
             imageStyle={[styles.gridImageStyle, isInactive && inactiveStyle]} // Applies opacity to the image
           >
             <LinearGradient

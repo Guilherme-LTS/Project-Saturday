@@ -15,14 +15,13 @@ const MatchHistoryCard: React.FC<MatchHistoryCardProps> = ({ match, darkMode, on
 
   return (
     <TouchableOpacity onLongPress={() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // Adiciona a vibração
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       onDelete(match.id);
     }}>
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         {match.teams.map((team, index) => {
           const isWinner = index === match.winnerTeamIndex;
           
-          // LÓGICA CORRIGIDA: Verifica se existe 'team.players'. Se não, usa 'team.names'.
           const playerNames = team.players 
             ? team.players.map(p => p.name).join(', ') 
             : (team as any).names?.join(', ') || 'Jogadores não encontrados';

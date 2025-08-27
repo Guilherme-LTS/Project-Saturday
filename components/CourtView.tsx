@@ -198,13 +198,13 @@ const styles = StyleSheet.create({
   },
   netImage: {
     position: 'absolute',
-    height: '93%',
+    height: '92%',
     width: '100%',
     left: '50%',
     top: 0,
     transform: [
       { translateX: '-45.58%' },
-      { translateY: 42 },
+      { translateY: 45 },
       { rotate: '-90deg' }
     ],
     zIndex: 2,
