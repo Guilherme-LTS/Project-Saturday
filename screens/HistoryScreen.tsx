@@ -84,7 +84,7 @@ export default function HistoryScreen() {
       {selectedDate === null ? (
         <>
           <TextInput
-            style={[styles.searchInput, { backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.cardInactive, marginBottom: 16 }]}
+            style={[styles.searchInput, { backgroundColor: theme.inputArea, color: theme.text, borderColor: theme.inputArea, marginBottom: 16 }]}
             placeholder="Buscar por data..."
             placeholderTextColor={theme.placeholder}
             value={historySearchQuery}

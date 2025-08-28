@@ -37,6 +37,7 @@ const useTheme = (darkMode: boolean) => {
     accentGreen: '#4CAF50',
     accentGreenSelected: '#388E3C',
     danger: 'red',
+    inputArea: '#2c3e50'
   };
 
   return { ...themeColors, ...commonColors };

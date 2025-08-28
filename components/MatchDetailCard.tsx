@@ -60,7 +60,7 @@ const MatchDetailCard: React.FC<MatchDetailCardProps> = ({
       onPress={toggleExpand}
       onLongPress={() => onDelete(match.id)}
       activeOpacity={0.8}
-      style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
+      style={[styles.card, { backgroundColor: theme.card }]}
     >
       <View style={styles.teamsContainer}>
         {/* Bloco Time 1 */}
@@ -103,7 +103,6 @@ const MatchDetailCard: React.FC<MatchDetailCardProps> = ({
 const styles = StyleSheet.create({
     card: {
         borderRadius: 8,
-        borderWidth: 1,
         padding: 0,
         marginBottom: 12,
         overflow: 'hidden',

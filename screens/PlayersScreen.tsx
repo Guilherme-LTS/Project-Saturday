@@ -205,7 +205,7 @@ export default function PlayersScreen() {
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <View style={styles.searchContainer}>
         <TextInput
-          style={[styles.searchInput, { flex: 1, backgroundColor: theme.cardInactive, color: theme.text, borderColor: theme.cardInactive }]}
+          style={[styles.searchInput, { flex: 1, backgroundColor: theme.inputArea, color: theme.text, borderColor: theme.inputArea }]}
           placeholder="Buscar jogador..."
           placeholderTextColor={theme.placeholder}
           value={searchQuery}
@@ -232,7 +232,7 @@ export default function PlayersScreen() {
         {showInput && (
           <View style={styles.dropdownContent}>
             <TextInput
-              style={[styles.textArea, { backgroundColor: theme.background, color: theme.text, borderColor: theme.cardInactive }]}
+              style={[styles.textArea, { backgroundColor: theme.inputArea, color: theme.text, borderColor: theme.inputArea }]}
               multiline
               placeholder={"Ex: João 3\nPedro\nnome e nível (1, 2 ou 3)"}
               placeholderTextColor={theme.placeholder}
