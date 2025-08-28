@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
+import PlayerFundamentalsModal from '../components/PlayerFundamentalsModal';
 import PlayerOptionsModal from '../components/PlayerOptionsModal';
 import TeamSizeSlider from '../components/TeamSizeSlider';
 
@@ -16,7 +17,7 @@ import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
-import { Player } from '../types';
+import { Player, PlayerFundamentals } from '../types';
 
 export default function EditScreen() {
   // --- Hooks ---
@@ -31,6 +32,7 @@ export default function EditScreen() {
   const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
   const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [isFundamentalsModalVisible, setIsFundamentalsModalVisible] = useState(false);
 
   // --- Memoized Values ---
   const sessionPlayers = useMemo(
@@ -89,6 +91,17 @@ export default function EditScreen() {
 
   const handleRemovePhoto = (playerId: string) => {
     updatePlayer(playerId, { photoUri: undefined });
+  };
+
+  const handleEditFundamentals = () => {
+    setIsOptionsModalVisible(false); // Close the options modal
+    setIsFundamentalsModalVisible(true); // Open the fundamentals modal
+  };
+
+  const handleSaveFundamentals = (playerId: string, fundamentals: PlayerFundamentals) => {
+    updatePlayer(playerId, { fundamentals }); // Update the player in the store
+    setIsFundamentalsModalVisible(false); // Close the modal
+    setIsOptionsModalVisible(true);
   };
 
   return (
@@ -168,10 +181,11 @@ export default function EditScreen() {
         darkMode={darkMode}
         matchHistory={matchHistory}
         onDelete={handleDeletePlayer}
-        onUpdateWeight={handleUpdateWeight}
         onEditName={handleEditName}
         onChangePhoto={handleChangePhoto}
         onRemovePhoto={handleRemovePhoto}
+        onEditFundamentals={handleEditFundamentals}
+        onUpdateWeight={handleUpdateWeight}
       />
 
       <EditNameModal
@@ -182,6 +196,16 @@ export default function EditScreen() {
           setSelectedPlayerId(null);
         }}
         onSave={handleSaveName}
+        darkMode={darkMode}
+      />
+      <PlayerFundamentalsModal
+        visible={isFundamentalsModalVisible}
+        player={selectedPlayer}
+        onClose={() => {
+          setIsFundamentalsModalVisible(false);
+          setIsOptionsModalVisible(true);
+        }}
+        onSave={handleSaveFundamentals}
         darkMode={darkMode}
       />
     </View>

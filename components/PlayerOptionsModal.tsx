@@ -26,13 +26,14 @@ interface PlayerOptionsModalProps {
   onDelete: (playerId: string) => void;
   onUpdateWeight: (player: Player) => void;
   onEditName: () => void;
+  onEditFundamentals: () => void;
   onChangePhoto: (player: Player, photoUri: string) => void;
   onRemovePhoto: (playerId: string) => void;
 }
 
 const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
   visible, player, darkMode, matchHistory, onClose, onDelete, onUpdateWeight, 
-  onEditName, onChangePhoto, onRemovePhoto
+  onEditName, onChangePhoto, onRemovePhoto, onEditFundamentals
 }) => {
   const theme = useTheme(darkMode);
 
@@ -195,6 +196,13 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
                 onPress={handleUpdateWeight}
               >
                 <Text style={[styles.buttonText, { color: theme.primaryText }]}>Alterar Nível</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.button, { backgroundColor: theme.primary }]}
+                onPress={onEditFundamentals}
+              >
+                <Text style={[styles.buttonText, { color: theme.primaryText }]}>Editar Fundamentos</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

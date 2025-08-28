@@ -1,14 +1,24 @@
 // types/index.ts (versão final)
+
+export type PlayerFundamentals = {
+  serve: 1 | 2 | 3 | 4 | 5;
+  passing: 1 | 2 | 3 | 4 | 5;
+  setting: 1 | 2 | 3 | 4 | 5;
+  attacking: 1 | 2 | 3 | 4 | 5;
+  blocking: 1 | 2 | 3 | 4 | 5;
+};
+
 export type Player = {
   id: string;
   name: string;
   active: boolean;
   weight: 1 | 2 | 3;
   photoUri?: string;
+  fundamentals?: PlayerFundamentals;
 };
 
 export type Team = {
-  players: Player[]; // A propriedade correta é 'players'
+  players: Player[];
   total: number;
 };
 

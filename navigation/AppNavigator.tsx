@@ -17,6 +17,8 @@ export default function AppNavigator() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        // This helps with keyboard behavior on some React Navigation versions
+        tabBarHideOnKeyboard: true,
       }}
       // Use your custom tab bar
       tabBar={(props) => <CustomTabBar {...props} />}

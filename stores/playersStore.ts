@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { Player } from '../types';
+import { Player, PlayerFundamentals } from '../types';
 import { loadPlayers, loadSelectedPlayerIds, savePlayers, saveSelectedPlayerIds } from '../utils/storage';
 
 interface PlayersState {
@@ -81,6 +81,7 @@ export const usePlayersStore = create<PlayersState>()(
       allPlayers: [],
       selectedPlayerIds: new Set()
     }),
+    
     substitutePlayers: (idsToDeactivate, idsToActivate) => set((state) => ({
       allPlayers: state.allPlayers.map(player => {
         if (idsToDeactivate.includes(player.id)) {
@@ -92,6 +93,7 @@ export const usePlayersStore = create<PlayersState>()(
         return player;
       })
     })),
+
     updatePlayerPhoto: (playerId: string, photoUri: string | null) => {
       set((state) => ({
         allPlayers: state.allPlayers.map(player =>
@@ -111,6 +113,12 @@ export const usePlayersStore = create<PlayersState>()(
         ),
       }));
     },
+
+    updatePlayerFundamentals: (playerId: string, fundamentals: PlayerFundamentals) => set((state) => ({
+      allPlayers: state.allPlayers.map(p => 
+        p.id === playerId ? { ...p, fundamentals } : p
+      )
+    })),
   }))
 );
 

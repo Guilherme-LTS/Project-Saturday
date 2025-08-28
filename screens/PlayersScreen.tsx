@@ -21,11 +21,12 @@ import SortSessionIcon from '../assets/icons/sort-session.svg';
 import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
+import PlayerFundamentalsModal from '../components/PlayerFundamentalsModal';
 import PlayerOptionsModal from '../components/PlayerOptionsModal';
 import useTheme from '../hooks/useTheme';
 import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
-import { Player, SortMode } from '../types';
+import { Player, PlayerFundamentals, SortMode } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
 
 // This function was in your original index.tsx, but not exported from helpers.
@@ -47,6 +48,7 @@ export default function PlayersScreen() {
   const [showInput, setShowInput] = useState(false);
   const [rawInput, setRawInput] = useState('');
   const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false);
+  const [isFundamentalsModalVisible, setIsFundamentalsModalVisible] = useState(false);
   
   // Zustand store state and actions
   const { allPlayers, selectedPlayerIds, togglePlayerSelection, addPlayers, deletePlayer, updatePlayer } = usePlayersStore();
@@ -117,6 +119,17 @@ export default function PlayersScreen() {
   const closePlayerOptionsModal = () => {
     setIsOptionsModalVisible(false);
     setSelectedPlayerId(null); // Clear the ID
+  };
+
+  const handleEditFundamentals = () => {
+    setIsOptionsModalVisible(false); // Close options modal
+    setIsFundamentalsModalVisible(true); // Open fundamentals modal
+  };
+
+  const handleSaveFundamentals = (playerId: string, fundamentals: PlayerFundamentals) => {
+    updatePlayer(playerId, { fundamentals });
+    setIsFundamentalsModalVisible(false);
+    setIsOptionsModalVisible(true);
   };
 
   const handleEditName = () => {
@@ -273,19 +286,31 @@ export default function PlayersScreen() {
         darkMode={darkMode}
         matchHistory={matchHistory}
         onDelete={handleDeletePlayer}
-        onUpdateWeight={handleUpdateWeight} // Now matches!
         onEditName={handleEditName}         // Now matches!
         onChangePhoto={handleChangePhoto}   // Added to prevent new errors
         onRemovePhoto={handleRemovePhoto}   // Added to prevent new errors
+        onEditFundamentals={handleEditFundamentals}
+        onUpdateWeight={handleUpdateWeight}
+
       />
       <EditNameModal
         visible={isEditNameModalVisible}
         player={selectedPlayer}
         onClose={() => {
           setIsEditNameModalVisible(false);
-          setSelectedPlayerId(null);
+          setIsOptionsModalVisible(true);
         }}
         onSave={handleSaveName} // Now correctly finds this function
+        darkMode={darkMode}
+      />
+      <PlayerFundamentalsModal
+        visible={isFundamentalsModalVisible}
+        player={selectedPlayer}
+        onClose={() => {
+          setIsFundamentalsModalVisible(false);
+          setIsOptionsModalVisible(true);
+        }}
+        onSave={handleSaveFundamentals}
         darkMode={darkMode}
       />
     </View>

@@ -2,7 +2,7 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
-  Dimensions,
+  Easing,
   Keyboard,
   Platform,
   StyleSheet,
@@ -38,9 +38,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: CustomT
   const theme = useTheme(darkMode);
   const insets = useSafeAreaInsets();
   
-  // Animated value for keyboard handling
+  // State for keyboard visibility
+  const [isKeyboardVisible, setIsKeyboardVisible] = React.useState(false);
   const keyboardHeight = useRef(new Animated.Value(0)).current;
-  const { height: screenHeight } = Dimensions.get('window');
+  const tabBarOpacity = useRef(new Animated.Value(1)).current;
 
   const rippleConfig = {
     color: darkMode ? 'rgba(25, 49, 72, 0.2)' : 'rgba(25, 49, 72, 0.3)',
@@ -49,40 +50,81 @@ export default function CustomTabBar({ state, descriptors, navigation }: CustomT
   };
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    // Use platform-specific keyboard events for better sync
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
-    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
-      // Animate the tab bar up with the keyboard
-      Animated.timing(keyboardHeight, {
-        toValue: event.endCoordinates.height,
-        duration: event.duration || 250, // Use the keyboard's animation duration
-        useNativeDriver: false, // We're animating layout properties
-      }).start();
+    const keyboardShowListener = Keyboard.addListener(showEvent, (event) => {
+      console.log('🔺 Keyboard showing, height:', event.endCoordinates.height);
+      setIsKeyboardVisible(true);
+      
+      // Animate tab bar to hide and move up
+      const animationDuration = event.duration && event.duration > 0 ? event.duration : 300;
+      
+      Animated.parallel([
+        // Move the tab bar up by keyboard height
+        Animated.timing(keyboardHeight, {
+          toValue: event.endCoordinates.height,
+          duration: animationDuration,
+          useNativeDriver: false,
+          easing: Easing.out(Easing.quad),
+        }),
+        // Fade out the tab bar
+        Animated.timing(tabBarOpacity, {
+          toValue: 0,
+          duration: animationDuration * 0.7, // Faster fade out
+          useNativeDriver: false,
+          easing: Easing.out(Easing.quad),
+        }),
+      ]).start();
     });
 
-    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', (event) => {
-      // Animate the tab bar back down
-      Animated.timing(keyboardHeight, {
-        toValue: 0,
-        duration: event.duration || 250,
-        useNativeDriver: false,
-      }).start();
+    const keyboardHideListener = Keyboard.addListener(hideEvent, (event) => {
+      console.log('🔻 Keyboard hiding');
+      setIsKeyboardVisible(false);
+      
+      // Animate tab bar to show and move down
+      const animationDuration = event?.duration && event.duration > 0 ? event.duration : 250;
+      
+      Animated.parallel([
+        // Move the tab bar back down
+        Animated.timing(keyboardHeight, {
+          toValue: 0,
+          duration: animationDuration,
+          useNativeDriver: false,
+          easing: Easing.out(Easing.quad),
+        }),
+        // Fade in the tab bar (with delay)
+        Animated.timing(tabBarOpacity, {
+          toValue: 1,
+          duration: animationDuration,
+          delay: animationDuration * 0.3, // Start fade in after 30% of animation
+          useNativeDriver: false,
+          easing: Easing.out(Easing.quad),
+        }),
+      ]).start();
     });
 
     return () => {
-      keyboardDidShowListener?.remove();
-      keyboardDidHideListener?.remove();
+      keyboardShowListener?.remove();
+      keyboardHideListener?.remove();
     };
-  }, [keyboardHeight]);
+  }, [keyboardHeight, tabBarOpacity]);
 
-  // Calculate the animated bottom position
+  // Calculate the animated bottom position and opacity
   const animatedStyle = {
+    opacity: tabBarOpacity,
     transform: [
       {
         translateY: Animated.multiply(keyboardHeight, -1), // Move up by keyboard height
       },
     ],
   };
+
+  // Don't render the tab bar if keyboard is visible (additional optimization)
+  if (isKeyboardVisible) {
+    return null;
+  }
 
   return (
     <Animated.View style={[
@@ -131,7 +173,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: CustomT
               >
                 <View style={styles.touchableArea}>
                   <View style={[styles.iconContainer, iconStyle]}>
-                    <IconComponent stroke={iconColor} width={26} height={26} />
+                    <IconComponent stroke={iconColor} width={24} height={24} />
                   </View>
                 </View>
               </TouchableNativeFeedback>

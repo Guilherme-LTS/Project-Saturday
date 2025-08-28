@@ -38,7 +38,6 @@ interface GameState {
   loadMatchHistory: () => Promise<void>;
   drawTeams: (sessionPlayers: Player[]) => void;
   endMatchAndSubstitute: () => void;
-  // ✅ FIX: Add the delete actions back to the interface
   deleteMatch: (matchId: string) => void;
   deleteMatchesByDate: (dateTitle: string) => void;
 }
