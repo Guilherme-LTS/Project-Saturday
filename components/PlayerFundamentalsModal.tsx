@@ -144,27 +144,28 @@ const PlayerFundamentalsModal: React.FC<PlayerFundamentalsModalProps> = ({
               <Text style={[styles.modalTitle, { color: theme.text }]}numberOfLines={1}>
                 Fundamentos - {player.name}
               </Text>
-              
-              <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                <View style={styles.FundamentalsContainer}>
-                  {(Object.keys(FUNDAMENT_LABELS) as Array<keyof PlayerFundamentals>).map(renderFundamentRow)}
-                </View>
+                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                  <TouchableOpacity activeOpacity={1}>
+                    <View style={styles.FundamentalsContainer}>
+                      {(Object.keys(FUNDAMENT_LABELS) as Array<keyof PlayerFundamentals>).map(renderFundamentRow)}
+                    </View>
 
-                <View style={styles.summaryContainer}>
-                  <Text style={[styles.summaryText, { color: theme.placeholder }]}>
-                    Média: {calculateAverage()}
-                  </Text>
-                </View>
+                    <View style={styles.summaryContainer}>
+                      <Text style={[styles.summaryText, { color: theme.placeholder }]}>
+                        Média: {calculateAverage()}
+                      </Text>
+                    </View>
 
-                <View style={styles.legendContainer}>
-                  <Text style={[styles.legendTitle, { color: theme.text }]}>
-                    Escala de Avaliação:
-                  </Text>
-                  <Text style={[styles.legendText, { color: theme.placeholder }]}>
-                    1 - Iniciante • 2 - Básico • 3 - Intermediário • 4 - Avançado • 5 - Expert
-                  </Text>
-                </View>
-              </ScrollView>
+                    <View style={styles.legendContainer}>
+                      <Text style={[styles.legendTitle, { color: theme.text }]}>
+                        Escala de Avaliação:
+                      </Text>
+                      <Text style={[styles.legendText, { color: theme.placeholder }]}>
+                        1 - Iniciante • 2 - Básico • 3 - Intermediário • 4 - Avançado • 5 - Expert
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </ScrollView>
 
               <View style={styles.buttonContainer}>
                 <TouchableOpacity

@@ -1,25 +1,17 @@
 import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { Match, Player, PlayerFundamentals, Team, TeamSize } from '../types';
+import { Match, Player, PlayerFundamentals, PlayerPairing, Team, TeamSize } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
 import { loadMatchHistory, saveMatchHistory } from '../utils/storage';
 import { usePlayersStore } from './playersStore';
 
-// --- Funções Auxiliares para o Novo Algoritmo ---
 
-/**
- * Retorna um objeto de fundamentos padrão para jogadores que não os possuem.
- */
+// --- Helper Functions ---
 const getDefaultFundamentals = (): PlayerFundamentals => ({
   serve: 3, passing: 3, setting: 3, attacking: 3, blocking: 3,
 });
 
-/**
- * Calcula a soma dos fundamentos para um time de jogadores.
- * @param players - Array de jogadores no time.
- * @returns Um objeto PlayerFundamentals com a soma de cada atributo.
- */
 const calculateTeamFundamentals = (players: Player[]): PlayerFundamentals => {
   const teamFundamentals: PlayerFundamentals = { serve: 1, passing: 1, setting: 1, attacking: 1, blocking: 1 };
   players.forEach(player => {
@@ -31,19 +23,10 @@ const calculateTeamFundamentals = (players: Player[]): PlayerFundamentals => {
   return teamFundamentals;
 };
 
-/**
- * Calcula o "custo" ou "desequilíbrio" total entre uma lista de times.
- * A métrica é a soma das diferenças absolutas de cada fundamento entre os times.
- * @param teams - Um array de times (apenas a lista de jogadores é necessária).
- * @returns Um número que representa o desequilíbrio total. Quanto menor, mais equilibrado.
- */
 const calculateTotalImbalance = (teams: { players: Player[] }[]): number => {
   if (teams.length < 2) return 0;
-
   const teamFundamentals = teams.map(t => calculateTeamFundamentals(t.players));
   let totalDifference = 0;
-
-  // Compara cada time com todos os outros times
   for (let i = 0; i < teamFundamentals.length; i++) {
     for (let j = i + 1; j < teamFundamentals.length; j++) {
       const fundamentalsA = teamFundamentals[i];
@@ -58,7 +41,6 @@ const calculateTotalImbalance = (teams: { players: Player[] }[]): number => {
   return totalDifference;
 };
 
-
 function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -68,23 +50,27 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-// --- Definição do Store Zustand ---
+// --- Zustand Store Definition ---
 interface GameState {
   teamSize: TeamSize;
   teams: Team[];
   matchHistory: Match[];
   winnerIndex: number | null;
-  balanceMode: 'level' | 'winrate' | 'fundamentals'; // Adicionado novo modo
+  balanceMode: 'level' | 'winrate' | 'fundamentals';
   displayedBalanceMode: 'level' | 'winrate' | 'fundamentals';
   showCourtView: boolean;
   leftoverPlayerIds: string[];
   playersWhoJustEnteredIds: Set<string>;
+  playerPairings: PlayerPairing[]; // Now an array
 
-  // Ações
+  // Actions
   setTeamSize: (size: TeamSize) => void;
   setWinnerIndex: (index: number | null) => void;
   setBalanceMode: (mode: 'level' | 'winrate' | 'fundamentals') => void;
   setShowCourtView: (show: boolean) => void;
+  addPlayerPairing: () => void;
+  updatePlayerPairing: (id: string, updates: Partial<Omit<PlayerPairing, 'id'>>) => void;
+  removePlayerPairing: (id: string) => void;
   addMatch: (match: Match) => void;
   deleteAllMatches: () => void;
   loadMatchHistory: () => Promise<void>;
@@ -100,16 +86,32 @@ export const useGameStore = create<GameState>()(
     teams: [],
     matchHistory: [],
     winnerIndex: null,
-    balanceMode: 'fundamentals', // Modo padrão agora é por fundamentos
+    balanceMode: 'fundamentals',
     displayedBalanceMode: 'fundamentals',
     showCourtView: true,
     leftoverPlayerIds: [],
     playersWhoJustEnteredIds: new Set(),
+    playerPairings: [], // Initialize as an empty array
 
     setTeamSize: (size) => set({ teamSize: size }),
     setWinnerIndex: (index) => set({ winnerIndex: index }),
     setBalanceMode: (mode) => set({ balanceMode: mode }),
     setShowCourtView: (show) => set({ showCourtView: show }),
+    
+    // New actions for managing pairing rules
+    addPlayerPairing: () => set(state => ({
+        playerPairings: [
+            ...state.playerPairings,
+            { id: new Date().toISOString() + Math.random(), player1Id: null, player2Id: null, type: 'together' }
+        ]
+    })),
+    updatePlayerPairing: (id, updates) => set(state => ({
+        playerPairings: state.playerPairings.map(p => p.id === id ? { ...p, ...updates } : p)
+    })),
+    removePlayerPairing: (id) => set(state => ({
+        playerPairings: state.playerPairings.filter(p => p.id !== id)
+    })),
+
     addMatch: (match) => set((state) => ({ matchHistory: [match, ...state.matchHistory] })),
     deleteAllMatches: () => set({ matchHistory: [] }),
 
@@ -131,31 +133,30 @@ export const useGameStore = create<GameState>()(
       })
     })),
 
-    // --- NOVA FUNÇÃO DRAWTEAMS ---
     drawTeams: (sessionPlayers) => {
-      const { teamSize, balanceMode, matchHistory } = get();
-      const activePlayers = sessionPlayers.filter((p: Player) => p.active);
+      const { teamSize, balanceMode, matchHistory, playerPairings } = get();
+      const activePlayers = sessionPlayers.filter(p => p.active);
 
       if (activePlayers.length < 2) {
-        set({ teams: [], leftoverPlayerIds: sessionPlayers.map((p: Player) => p.id) });
+        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
         return;
       }
       
       const numPlayersToDraw = Math.floor(activePlayers.length / teamSize) * teamSize;
       const playersForTeams = shuffleArray(activePlayers).slice(0, numPlayersToDraw);
-      const drawnPlayerIds = new Set(playersForTeams.map((p: Player) => p.id));
-      const leftoverPlayers = sessionPlayers.filter((p: Player) => !drawnPlayerIds.has(p.id));
+      const drawnPlayerIds = new Set(playersForTeams.map(p => p.id));
+      const leftoverPlayers = sessionPlayers.filter(p => !drawnPlayerIds.has(p.id));
       const numTeams = Math.floor(playersForTeams.length / teamSize);
 
-      if (numTeams === 0) {
-        set({ teams: [], leftoverPlayerIds: sessionPlayers.map((p: Player) => p.id) });
+      if (numTeams < 2) { // Need at least 2 teams to apply pairing rules
+        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
         return;
       }
 
       let finalTeams: Team[] = [];
 
-      // --- LÓGICA ANTIGA PARA 'level' E 'winrate' ---
       if (balanceMode === 'level' || balanceMode === 'winrate') {
+        // This part remains the same, but you could add pairing logic here too if desired.
         let sortedPlayers;
         if (balanceMode === 'winrate') {
           sortedPlayers = [...playersForTeams].sort((a, b) => (calculatePlayerStats(b.id, matchHistory).winRate ?? 50) - (calculatePlayerStats(a.id, matchHistory).winRate ?? 50));
@@ -175,55 +176,67 @@ export const useGameStore = create<GameState>()(
           const total = teamPlayers.reduce((sum, p) => sum + (balanceMode === 'winrate' ? (calculatePlayerStats(p.id, matchHistory).winRate ?? 50) : p.weight), 0);
           return { players: teamPlayers, total, fundamentals: calculateTeamFundamentals(teamPlayers) };
         });
-
-      // --- NOVA LÓGICA DE OTIMIZAÇÃO PARA 'fundamentals' ---
       } else {
-        // 1. Cria a combinação inicial aleatória
         let bestCombination: Player[][] = Array.from({ length: numTeams }, () => []);
         playersForTeams.forEach((player, i) => {
           bestCombination[i % numTeams].push(player);
         });
 
-        let bestImbalance = calculateTotalImbalance(bestCombination.map((p: Player[]) => ({ players: p })));
+        let bestImbalance = calculateTotalImbalance(bestCombination.map(p => ({ players: p })));
 
-        // 2. Loop de otimização para encontrar a melhor combinação
-        const maxIterations = 2500; // Aumentar para mais precisão, diminuir para mais velocidade
+        const maxIterations = 3000;
         for (let i = 0; i < maxIterations; i++) {
-          if (bestImbalance === 0) break; // Já está perfeito
+          if (bestImbalance === 0) break;
 
-          // Escolhe dois times aleatórios para tentar uma troca
           const team1Index = Math.floor(Math.random() * numTeams);
           let team2Index = Math.floor(Math.random() * numTeams);
           while (team1Index === team2Index) {
             team2Index = Math.floor(Math.random() * numTeams);
           }
 
-          // Escolhe um jogador aleatório de cada time
           const player1Index = Math.floor(Math.random() * bestCombination[team1Index].length);
           const player2Index = Math.floor(Math.random() * bestCombination[team2Index].length);
 
-          // Cria uma cópia temporária da combinação para testar a troca
-          // ✅ FIX: Explicitly type the result of JSON.parse to avoid 'any' type
           const tempCombination: Player[][] = JSON.parse(JSON.stringify(bestCombination));
           const player1 = tempCombination[team1Index][player1Index];
           const player2 = tempCombination[team2Index][player2Index];
 
-          // Realiza a troca na cópia temporária
           tempCombination[team1Index][player1Index] = player2;
           tempCombination[team2Index][player2Index] = player1;
 
-          // Calcula o desequilíbrio da nova combinação
-          const newImbalance = calculateTotalImbalance(tempCombination.map((p: Player[]) => ({ players: p })));
+          // Check all pairing constraints
+          let isValidSwap = true;
+          if (playerPairings.length > 0) {
+              for (const pairing of playerPairings) {
+                  if (pairing.player1Id && pairing.player2Id) {
+                      const { player1Id, player2Id, type } = pairing;
+                      const teamOfP1 = tempCombination.findIndex(team => team.some(p => p.id === player1Id));
+                      const teamOfP2 = tempCombination.findIndex(team => team.some(p => p.id === player2Id));
 
-          // Se a troca melhorou o equilíbrio, a aceita como a nova melhor combinação
-          if (newImbalance < bestImbalance) {
-            bestImbalance = newImbalance;
-            bestCombination = tempCombination;
+                      if (teamOfP1 !== -1 && teamOfP2 !== -1) {
+                          if (type === 'together' && teamOfP1 !== teamOfP2) {
+                              isValidSwap = false;
+                              break;
+                          }
+                          if (type === 'apart' && teamOfP1 === teamOfP2) {
+                              isValidSwap = false;
+                              break;
+                          }
+                      }
+                  }
+              }
+          }
+
+          if(isValidSwap){
+            const newImbalance = calculateTotalImbalance(tempCombination.map(p => ({ players: p })));
+            if (newImbalance < bestImbalance) {
+                bestImbalance = newImbalance;
+                bestCombination = tempCombination;
+            }
           }
         }
         
-        // 3. Formata a melhor combinação encontrada para o estado do store
-        finalTeams = bestCombination.map((teamPlayers: Player[]) => {
+        finalTeams = bestCombination.map(teamPlayers => {
           const fundamentals = calculateTeamFundamentals(teamPlayers);
           const total = Object.values(fundamentals).reduce((sum, val) => sum + val, 0);
           return { players: teamPlayers, total, fundamentals };
@@ -234,12 +247,11 @@ export const useGameStore = create<GameState>()(
         teams: finalTeams,
         winnerIndex: null,
         displayedBalanceMode: balanceMode,
-        leftoverPlayerIds: leftoverPlayers.map((p: Player) => p.id),
+        leftoverPlayerIds: leftoverPlayers.map(p => p.id),
       });
     },
 
     endMatchAndSubstitute: () => {
-        // (Esta função permanece a mesma)
         const { teams, winnerIndex, leftoverPlayerIds, playersWhoJustEnteredIds, addMatch } = get();
         const { substitutePlayers } = usePlayersStore.getState();
   
@@ -260,7 +272,7 @@ export const useGameStore = create<GameState>()(
   
         const losingTeam = teams[winnerIndex === 0 ? 1 : 0];
         const eligibleToLeaveIds = losingTeam.players
-          .map((p: Player) => p.id)
+          .map(p => p.id)
           .filter(id => !playersWhoJustEnteredIds.has(id));
   
         if (eligibleToLeaveIds.length < playersToEnterIds.length) {

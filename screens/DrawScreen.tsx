@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_HEIGHT } from '@/components/CustomTabBar';
@@ -15,10 +15,7 @@ import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
 
 export default function DrawScreen() {
-  // --- State ---
   const [isBalanceModalVisible, setBalanceModalVisible] = useState(false);
-
-  // --- Hooks ---
   const insets = useSafeAreaInsets();
   const {
     teams,
@@ -36,15 +33,16 @@ export default function DrawScreen() {
   const { darkMode } = useThemeStore();
   const theme = useTheme(darkMode);
 
-  // --- Memoized Values ---
   const sessionPlayers = useMemo(() => {
     return allPlayers.filter(p => selectedPlayerIds.has(p.id));
   }, [allPlayers, selectedPlayerIds]);
+  
+  const activePlayers = useMemo(() => {
+      return sessionPlayers.filter(p => p.active);
+  }, [sessionPlayers]);
 
-  // --- Handlers ---
   const handleDraw = () => {
-    const activePlayerCount = sessionPlayers.filter(p => p.active).length;
-    if (activePlayerCount < 2) {
+    if (activePlayers.length < 2) {
       Alert.alert('Jogadores Insuficientes', 'Você precisa de pelo menos 2 jogadores ativos para sortear os times.');
       return;
     }
@@ -69,13 +67,12 @@ export default function DrawScreen() {
   const handleSelectBalanceMode = (mode: 'level' | 'winrate' | 'fundamentals') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setBalanceMode(mode);
-    setBalanceModalVisible(false);
   };
   
   const getBalanceModeText = () => {
       switch (balanceMode) {
-          case 'level': return 'Nível';
-          case 'winrate': return 'Vitória';
+          case 'level': return 'Por Nível';
+          case 'winrate': return 'Por Vitória';
           case 'fundamentals': return 'Fundamentos';
           default: return 'Balancear';
       }
@@ -86,6 +83,7 @@ export default function DrawScreen() {
       <BalanceTypeModal
         visible={isBalanceModalVisible}
         darkMode={darkMode}
+        players={activePlayers}
         onClose={() => setBalanceModalVisible(false)}
         onSelectMode={handleSelectBalanceMode}
       />
@@ -105,7 +103,7 @@ export default function DrawScreen() {
             onSelectWinner={handleSelectWinner}
           />
         ) : (
-          <View>
+          <ScrollView showsVerticalScrollIndicator={false}>
             {teams.map((t, idx) => (
               <TeamCard
                 key={idx}
@@ -117,7 +115,7 @@ export default function DrawScreen() {
                 balanceMode={displayedBalanceMode}
               />
             ))}
-          </View>
+          </ScrollView>
         )}
       </View>
 
