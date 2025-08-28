@@ -1,92 +1,140 @@
-import Checkbox from 'expo-checkbox';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import useTheme from '../hooks/useTheme';
 import { Team } from '../types';
+import PlayerAvatar from './PlayerAvatar';
 
 interface TeamCardProps {
   team: Team;
   teamNumber: number;
   darkMode: boolean;
-  balanceMode: 'level' | 'winrate';
-  showWinnerCheckbox?: boolean;
-  isWinner?: boolean;
-  onSelectWinner?: () => void;
+  isWinner: boolean;
+  onSelectWinner: () => void;
+  balanceMode: 'level' | 'winrate' | 'fundamentals';
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({
-  team,
-  teamNumber,
-  darkMode,
-  balanceMode,
-  showWinnerCheckbox,
-  isWinner,
-  onSelectWinner,
+  team, teamNumber, darkMode, isWinner, onSelectWinner, balanceMode
 }) => {
-  
-  const averageValue =
-    team.players.length > 0
-      ? (team.total / team.players.length).toFixed(1)
-      : 0;
-  
-  const label = balanceMode === 'level' ? 'Nível médio:' : 'Vitória média:';
-  const displayValue = balanceMode === 'level' ? averageValue : `${averageValue}%`;
+  const theme = useTheme(darkMode);
+
+  const getBalanceText = () => {
+    switch (balanceMode) {
+      case 'level':
+        return `Nível Total: ${(team.total / team.players.length).toFixed(2)}`;
+      case 'winrate':
+        return `Média Vitórias: ${team.total.toFixed(1)}%`;
+      case 'fundamentals':
+        return `Pontos Totais: ${team.total}`;
+      default:
+        return '';
+    }
+  };
 
   return (
-    <TouchableOpacity onPress={onSelectWinner} disabled={!showWinnerCheckbox}>
-      <View
-        style={[
-          styles.teamCard,
-          {
-            backgroundColor: darkMode ? '#333' : '#fff',
-            borderColor: isWinner ? '#4CAF50' : (darkMode ? '#555' : '#eee'),
-            borderWidth: 2,
-          },
-        ]}
-      >
-        <View style={styles.header}>
-          <Text style={[styles.teamTitle, { color: darkMode ? '#0a84ff' : '#0a84ff' }]}>
-            Time {teamNumber} ({team.players.length}) - {label} {displayValue}
-          </Text>
-          {showWinnerCheckbox && (
-            <Checkbox
-              value={isWinner}
-              onValueChange={onSelectWinner}
-              color={isWinner ? '#4CAF50' : '#888'}
-            />
-          )}
-        </View>
-        {team.players.map((player) => (
-          <Text key={player.id} style={[styles.teamPlayer, { color: darkMode ? '#fff' : '#222' }]}>
-            • {player.name}
-          </Text>
+    // The entire card is now a TouchableOpacity for selecting the winner
+    <TouchableOpacity 
+      style={[
+        styles.card, 
+        { 
+          backgroundColor: theme.card, 
+          borderColor: isWinner ? theme.accentGreen : theme.cardInactive,
+          // Add a subtle shadow or elevation when selected
+          shadowColor: isWinner ? theme.accentGreen : '#000',
+          shadowOpacity: isWinner ? 0.3 : 0.1,
+          shadowRadius: isWinner ? 5 : 2,
+          elevation: isWinner ? 5 : 2,
+        }
+      ]}
+      onPress={onSelectWinner}
+      activeOpacity={0.8}
+    >
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: theme.text }]}>Time {teamNumber}</Text>
+        {/* Visual indicator for the winner */}
+        {isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.accentGreen}]} />}
+        {!isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.cardInactive}]} />}
+      </View>
+
+      {/* Player list now uses a two-column grid layout */}
+      <View style={styles.playerGrid}>
+        {team.players.map(player => (
+          <View key={player.id} style={styles.playerCell}>
+            <PlayerAvatar player={player} size={36} theme={theme} />
+            <Text style={[styles.playerName, { color: theme.text }]} numberOfLines={1}>
+              {player.name}
+            </Text>
+          </View>
         ))}
+      </View>
+
+      <View style={[styles.footer, { borderTopColor: theme.cardInactive }]}>
+        <Text style={[styles.total, { color: theme.placeholder }]}>{getBalanceText()}</Text>
+        {balanceMode === 'fundamentals' && team.fundamentals && (
+            <Text style={[styles.fundamentalsText, { color: theme.placeholder }]}>
+                S:{team.fundamentals.serve} P:{team.fundamentals.passing} L:{team.fundamentals.setting} A:{team.fundamentals.attacking} B:{team.fundamentals.blocking}
+            </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  teamCard: {
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+  card: {
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    overflow: 'hidden', // Ensures inner content respects the border radius
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    padding: 14,
   },
-  teamTitle: {
-    fontWeight: '700',
-    fontSize: 16,
-    flex: 1,
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
-  teamPlayer: {
+  winnerIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+  },
+  // New styles for the grid layout
+  playerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+  },
+  playerCell: {
+    width: '50%', // Each cell takes up half the width
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 6,
+    gap: 10,
+  },
+  playerName: {
     fontSize: 15,
-    marginLeft: 8,
-    marginBottom: 2,
+    flex: 1, // Allows text to shrink if needed
   },
+  footer: {
+    padding: 12,
+    borderTopWidth: 1,
+    alignItems: 'center',
+  },
+  total: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  fundamentalsText: {
+      fontSize: 11,
+      marginTop: 4,
+      textAlign: 'center',
+  }
 });
 
 export default TeamCard;

@@ -1,4 +1,4 @@
-// types/index.ts (versão final)
+// types/index.ts
 
 export type PlayerFundamentals = {
   serve: 1 | 2 | 3 | 4 | 5;
@@ -19,7 +19,8 @@ export type Player = {
 
 export type Team = {
   players: Player[];
-  total: number;
+  total: number; // Agora representa a soma total de todos os pontos de fundamento
+  fundamentals: PlayerFundamentals; // Vetor com a soma dos fundamentos do time
 };
 
 export type Screen = 'edit' | 'draw' | 'players' | 'settings' | 'history';

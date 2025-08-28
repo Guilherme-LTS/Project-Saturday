@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics';
-import React, { useMemo } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_HEIGHT } from '@/components/CustomTabBar';
 import EyeOffIcon from '../assets/icons/eye-off.svg';
 import EyeIcon from '../assets/icons/eye.svg';
+import BalanceTypeModal from '../components/BalanceTypeModal';
 import CourtView from '../components/CourtView';
 import TeamCard from '../components/TeamCard';
 import useTheme from '../hooks/useTheme';
@@ -14,6 +15,9 @@ import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
 
 export default function DrawScreen() {
+  // --- State ---
+  const [isBalanceModalVisible, setBalanceModalVisible] = useState(false);
+
   // --- Hooks ---
   const insets = useSafeAreaInsets();
   const {
@@ -33,26 +37,18 @@ export default function DrawScreen() {
   const theme = useTheme(darkMode);
 
   // --- Memoized Values ---
-  const activePlayersForDraw = useMemo(() => {
-    return allPlayers.filter(p => selectedPlayerIds.has(p.id) && p.active);
-  }, [allPlayers, selectedPlayerIds]);
-
-  // --- Handlers ---
-
   const sessionPlayers = useMemo(() => {
     return allPlayers.filter(p => selectedPlayerIds.has(p.id));
   }, [allPlayers, selectedPlayerIds]);
 
+  // --- Handlers ---
   const handleDraw = () => {
-    // We still check for active players before drawing.
     const activePlayerCount = sessionPlayers.filter(p => p.active).length;
     if (activePlayerCount < 2) {
       Alert.alert('Jogadores Insuficientes', 'Você precisa de pelo menos 2 jogadores ativos para sortear os times.');
-      { cancelable: true }
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // ✅ FIX: Pass the entire list of session players to the action.
     drawTeams(sessionPlayers);
   };
 
@@ -62,7 +58,7 @@ export default function DrawScreen() {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    endMatchAndSubstitute(); // Call the store action
+    endMatchAndSubstitute();
   };
   
   const handleSelectWinner = (index: number) => {
@@ -70,13 +66,30 @@ export default function DrawScreen() {
     setWinnerIndex(index === winnerIndex ? null : index);
   };
 
-  const handleToggleBalanceMode = () => {
+  const handleSelectBalanceMode = (mode: 'level' | 'winrate' | 'fundamentals') => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setBalanceMode(balanceMode === 'level' ? 'winrate' : 'level');
+    setBalanceMode(mode);
+    setBalanceModalVisible(false);
   };
+  
+  const getBalanceModeText = () => {
+      switch (balanceMode) {
+          case 'level': return 'Nível';
+          case 'winrate': return 'Vitória';
+          case 'fundamentals': return 'Fundamentos';
+          default: return 'Balancear';
+      }
+  }
 
   return (
-     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
+     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
+      <BalanceTypeModal
+        visible={isBalanceModalVisible}
+        darkMode={darkMode}
+        onClose={() => setBalanceModalVisible(false)}
+        onSelectMode={handleSelectBalanceMode}
+      />
+
       <View style={{ flex: 1 }}>
         {teams.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -92,20 +105,19 @@ export default function DrawScreen() {
             onSelectWinner={handleSelectWinner}
           />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <View>
             {teams.map((t, idx) => (
               <TeamCard
                 key={idx}
                 team={t}
                 teamNumber={idx + 1}
                 darkMode={darkMode}
-                showWinnerCheckbox={true}
                 isWinner={idx === winnerIndex}
                 onSelectWinner={() => handleSelectWinner(idx)}
                 balanceMode={displayedBalanceMode}
               />
             ))}
-          </ScrollView>
+          </View>
         )}
       </View>
 
@@ -134,10 +146,10 @@ export default function DrawScreen() {
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={[styles.toggleButton, { backgroundColor: theme.border }]}
-            onPress={handleToggleBalanceMode}
+            onPress={() => setBalanceModalVisible(true)}
           >
-            <Text style={[styles.buttonText, { color: theme.text, fontSize: 14 }]}>
-              {balanceMode === 'level' ? 'Por Nível' : 'Por Vitória'}
+            <Text style={[styles.buttonText, { color: theme.text, fontSize: 12 }]}>
+              {getBalanceModeText()}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
