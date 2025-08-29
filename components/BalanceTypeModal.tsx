@@ -26,6 +26,15 @@ const TrashIcon = ({ color = 'white', size = 16 }: { color?: string, size?: numb
     </Svg>
 );
 
+// --- MODIFICATION START ---
+// Added the ClearIcon required for the new button
+const ClearIcon = ({ color = 'white', size = 20 }: { color?: string, size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+        <Path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </Svg>
+);
+// --- MODIFICATION END ---
+
 
 // --- Pairing Row Component ---
 interface PairingRowProps {
@@ -115,7 +124,10 @@ interface BalanceTypeModalProps {
 }
 const BalanceTypeModal: React.FC<BalanceTypeModalProps> = ({ visible, darkMode, players, onClose, onSelectMode }) => {
   const theme = useTheme(darkMode);
-  const { playerPairings, addPlayerPairing } = useGameStore();
+  // --- MODIFICATION START ---
+  // Added clearPlayerPairings. You will need to implement this function in your gameStore.
+  const { playerPairings, addPlayerPairing, clearPlayerPairings } = useGameStore(); 
+  // --- MODIFICATION END ---
 
   const handleSelectMode = (mode: BalanceMode) => {
     onSelectMode(mode);
@@ -144,7 +156,25 @@ const BalanceTypeModal: React.FC<BalanceTypeModalProps> = ({ visible, darkMode, 
               <View style={[styles.divider, { backgroundColor: theme.cardInactive }]} />
 
               <View>
-                <Text style={[styles.pairingTitle, { color: theme.text }]}>Regras de Sorteio</Text>
+                {/* --- MODIFICATION START --- */}
+                {/* Replaced the centered title with the new header section */}
+                <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>
+                        Regras de Sorteio
+                    </Text>
+                    {playerPairings.length > 0 && (
+                        <TouchableOpacity 
+                            style={[styles.clearAllButton, { backgroundColor: theme.danger + '20' }]} 
+                            onPress={clearPlayerPairings} // This function should clear all rules
+                        >
+                            <ClearIcon color={theme.danger} size={16} />
+                            <Text style={[styles.clearAllText, { color: theme.danger }]}>
+                                Limpar
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+                {/* --- MODIFICATION END --- */}
 
                 <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
                     <TouchableOpacity activeOpacity={1}>
@@ -211,12 +241,32 @@ const styles = StyleSheet.create({
         height: 1,
         marginVertical: 20
     },
-    pairingTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        textAlign: 'center',
+    // --- MODIFICATION START ---
+    // New styles for the header section
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: 16
     },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '600'
+    },
+    clearAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 6,
+        gap: 4
+    },
+    clearAllText: {
+        fontSize: 12,
+        fontWeight: '500'
+    },
+    // Renamed pairingTitle to sectionTitle and removed textAlign: 'center'
+    // --- MODIFICATION END ---
     scrollView: {
         maxHeight: 200,
         marginBottom: 8

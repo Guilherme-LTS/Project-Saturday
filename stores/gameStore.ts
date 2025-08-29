@@ -71,6 +71,10 @@ interface GameState {
   addPlayerPairing: () => void;
   updatePlayerPairing: (id: string, updates: Partial<Omit<PlayerPairing, 'id'>>) => void;
   removePlayerPairing: (id: string) => void;
+  // --- MODIFICATION START ---
+  // Added clearPlayerPairings to the interface to satisfy TypeScript
+  clearPlayerPairings: () => void;
+  // --- MODIFICATION END ---
   addMatch: (match: Match) => void;
   deleteAllMatches: () => void;
   loadMatchHistory: () => Promise<void>;
@@ -111,6 +115,10 @@ export const useGameStore = create<GameState>()(
     removePlayerPairing: (id) => set(state => ({
         playerPairings: state.playerPairings.filter(p => p.id !== id)
     })),
+    // --- MODIFICATION START ---
+    // Implemented the function to clear the player pairings array
+    clearPlayerPairings: () => set({ playerPairings: [] }),
+    // --- MODIFICATION END ---
 
     addMatch: (match) => set((state) => ({ matchHistory: [match, ...state.matchHistory] })),
     deleteAllMatches: () => set({ matchHistory: [] }),
@@ -127,7 +135,7 @@ export const useGameStore = create<GameState>()(
     deleteMatchesByDate: (dateTitle) => set((state) => ({
       matchHistory: state.matchHistory.filter(match => {
         const matchDate = new Date(match.date).toLocaleDateString('pt-BR', {
-          day: '2-digit', month: '2-digit', year: 'numeric',
+          day: '2-digit', month: '2-digit', year: '2-digit',
         });
         return matchDate !== dateTitle;
       })
@@ -135,6 +143,13 @@ export const useGameStore = create<GameState>()(
 
     drawTeams: (sessionPlayers) => {
       const { teamSize, balanceMode, matchHistory, playerPairings } = get();
+
+      // --- MODIFICATION START ---
+      // Determine the effective balance mode. If there are pairing rules, we MUST use fundamentals.
+      const validPairings = playerPairings.filter(p => p.player1Id && p.player2Id);
+      const effectiveBalanceMode = validPairings.length > 0 ? 'fundamentals' : balanceMode;
+      // --- MODIFICATION END ---
+      
       const activePlayers = sessionPlayers.filter(p => p.active);
 
       if (activePlayers.length < 2) {
@@ -148,17 +163,19 @@ export const useGameStore = create<GameState>()(
       const leftoverPlayers = sessionPlayers.filter(p => !drawnPlayerIds.has(p.id));
       const numTeams = Math.floor(playersForTeams.length / teamSize);
 
-      if (numTeams < 2) { // Need at least 2 teams to apply pairing rules
+      if (numTeams < 2) {
         set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
         return;
       }
 
       let finalTeams: Team[] = [];
 
-      if (balanceMode === 'level' || balanceMode === 'winrate') {
-        // This part remains the same, but you could add pairing logic here too if desired.
+      // --- MODIFICATION START ---
+      // The logic is now primarily based on the effectiveBalanceMode
+      if (effectiveBalanceMode === 'level' || effectiveBalanceMode === 'winrate') {
+      // --- MODIFICATION END ---
         let sortedPlayers;
-        if (balanceMode === 'winrate') {
+        if (effectiveBalanceMode === 'winrate') {
           sortedPlayers = [...playersForTeams].sort((a, b) => (calculatePlayerStats(b.id, matchHistory).winRate ?? 50) - (calculatePlayerStats(a.id, matchHistory).winRate ?? 50));
         } else {
           sortedPlayers = [...playersForTeams].sort((a, b) => b.weight - a.weight);
@@ -173,17 +190,63 @@ export const useGameStore = create<GameState>()(
         }
         
         finalTeams = teams.map(teamPlayers => {
-          const total = teamPlayers.reduce((sum, p) => sum + (balanceMode === 'winrate' ? (calculatePlayerStats(p.id, matchHistory).winRate ?? 50) : p.weight), 0);
+          const total = teamPlayers.reduce((sum, p) => sum + (effectiveBalanceMode === 'winrate' ? (calculatePlayerStats(p.id, matchHistory).winRate ?? 50) : p.weight), 0);
           return { players: teamPlayers, total, fundamentals: calculateTeamFundamentals(teamPlayers) };
         });
-      } else {
+      } else { // This is the 'fundamentals' mode, which now handles all pairing logic
+        // 1. Create a random initial combination
         let bestCombination: Player[][] = Array.from({ length: numTeams }, () => []);
         playersForTeams.forEach((player, i) => {
           bestCombination[i % numTeams].push(player);
         });
 
+        // --- MODIFICATION START ---
+        // 2. Pre-process the combination to satisfy all pairing rules BEFORE balancing
+        if (validPairings.length > 0) {
+            const maxCorrectionAttempts = 50; // Avoid infinite loops
+            for (let attempt = 0; attempt < maxCorrectionAttempts; attempt++) {
+                let violations = 0;
+                // Fix 'together' violations
+                for (const pairing of validPairings.filter(p => p.type === 'together')) {
+                    const teamOfP1 = bestCombination.findIndex(team => team.some(p => p.id === pairing.player1Id));
+                    const teamOfP2 = bestCombination.findIndex(team => team.some(p => p.id === pairing.player2Id));
+                    if (teamOfP1 !== -1 && teamOfP2 !== -1 && teamOfP1 !== teamOfP2) {
+                        violations++;
+                        // Move player 2 to player 1's team by swapping with a random player
+                        const playerToMove = bestCombination[teamOfP2].find(p => p.id === pairing.player2Id)!;
+                        const playerToSwapIndex = Math.floor(Math.random() * bestCombination[teamOfP1].length);
+                        const playerToSwap = bestCombination[teamOfP1][playerToSwapIndex];
+                        
+                        bestCombination[teamOfP1][playerToSwapIndex] = playerToMove;
+                        const p2Index = bestCombination[teamOfP2].findIndex(p => p.id === pairing.player2Id);
+                        bestCombination[teamOfP2][p2Index] = playerToSwap;
+                    }
+                }
+                // Fix 'apart' violations
+                for (const pairing of validPairings.filter(p => p.type === 'apart')) {
+                    const teamIndex = bestCombination.findIndex(team => team.some(p => p.id === pairing.player1Id) && team.some(p => p.id === pairing.player2Id));
+                    if (teamIndex !== -1) {
+                        violations++;
+                        // Move player 2 to a different team by swapping with a random player
+                        const playerToMove = bestCombination[teamIndex].find(p => p.id === pairing.player2Id)!;
+                        let otherTeamIndex = (teamIndex + 1 + Math.floor(Math.random() * (numTeams - 1))) % numTeams;
+                        
+                        const playerToSwapIndex = Math.floor(Math.random() * bestCombination[otherTeamIndex].length);
+                        const playerToSwap = bestCombination[otherTeamIndex][playerToSwapIndex];
+                        
+                        bestCombination[otherTeamIndex][playerToSwapIndex] = playerToMove;
+                        const p2Index = bestCombination[teamIndex].findIndex(p => p.id === pairing.player2Id);
+                        bestCombination[teamIndex][p2Index] = playerToSwap;
+                    }
+                }
+                if (violations === 0) break; // Exit if all rules are satisfied
+            }
+        }
+        // --- MODIFICATION END ---
+
         let bestImbalance = calculateTotalImbalance(bestCombination.map(p => ({ players: p })));
 
+        // 3. Now run the optimization loop on the VALIDATED combination
         const maxIterations = 3000;
         for (let i = 0; i < maxIterations; i++) {
           if (bestImbalance === 0) break;
@@ -198,31 +261,19 @@ export const useGameStore = create<GameState>()(
           const player2Index = Math.floor(Math.random() * bestCombination[team2Index].length);
 
           const tempCombination: Player[][] = JSON.parse(JSON.stringify(bestCombination));
-          const player1 = tempCombination[team1Index][player1Index];
-          const player2 = tempCombination[team2Index][player2Index];
-
-          tempCombination[team1Index][player1Index] = player2;
-          tempCombination[team2Index][player2Index] = player1;
+          [tempCombination[team1Index][player1Index], tempCombination[team2Index][player2Index]] = 
+          [tempCombination[team2Index][player2Index], tempCombination[team1Index][player1Index]];
 
           // Check all pairing constraints
           let isValidSwap = true;
-          if (playerPairings.length > 0) {
-              for (const pairing of playerPairings) {
-                  if (pairing.player1Id && pairing.player2Id) {
-                      const { player1Id, player2Id, type } = pairing;
-                      const teamOfP1 = tempCombination.findIndex(team => team.some(p => p.id === player1Id));
-                      const teamOfP2 = tempCombination.findIndex(team => team.some(p => p.id === player2Id));
-
-                      if (teamOfP1 !== -1 && teamOfP2 !== -1) {
-                          if (type === 'together' && teamOfP1 !== teamOfP2) {
-                              isValidSwap = false;
-                              break;
-                          }
-                          if (type === 'apart' && teamOfP1 === teamOfP2) {
-                              isValidSwap = false;
-                              break;
-                          }
-                      }
+          for (const pairing of validPairings) {
+              const { player1Id, player2Id, type } = pairing;
+              const teamOfP1 = tempCombination.findIndex(team => team.some(p => p.id === player1Id));
+              const teamOfP2 = tempCombination.findIndex(team => team.some(p => p.id === player2Id));
+              if (teamOfP1 !== -1 && teamOfP2 !== -1) {
+                  if ((type === 'together' && teamOfP1 !== teamOfP2) || (type === 'apart' && teamOfP1 === teamOfP2)) {
+                      isValidSwap = false;
+                      break;
                   }
               }
           }
@@ -246,7 +297,7 @@ export const useGameStore = create<GameState>()(
       set({
         teams: finalTeams,
         winnerIndex: null,
-        displayedBalanceMode: balanceMode,
+        displayedBalanceMode: effectiveBalanceMode, // Display the mode that was actually used
         leftoverPlayerIds: leftoverPlayers.map(p => p.id),
       });
     },

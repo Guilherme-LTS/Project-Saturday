@@ -265,7 +265,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                     {/* Top-aligned content */}
                     <View>
                         <TouchableOpacity onPress={onEditName} style={styles.modalTitleContainer} activeOpacity={0.7}>
-                            <EditIcon color={theme.placeholder} size={16} />
+                            <EditIcon color={theme.placeholder} size={16}/>
                             <Text style={[
                               styles.modalTitle, 
                               { color: theme.text },
