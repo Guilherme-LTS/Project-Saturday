@@ -10,7 +10,7 @@ import SortSessionIcon from '../assets/icons/sort-session.svg';
 import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
-import PlayerStatsModal from '../components/PlayerStatsModal'; // Import the new unified modal
+import PlayerStatsModal from '../components/PlayerStatsModal';
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
@@ -127,9 +127,42 @@ export default function PlayersScreen() {
 
   const filteredPlayers = useMemo(() => {
     const filtered = allPlayers.filter(p => normalizeString(p.name).includes(normalizeString(searchQuery)));
-    // Sorting logic remains the same
-    return filtered;
-  }, [allPlayers, searchQuery, sortMode, selectedPlayerIds, matchHistory, statsByPlayer]);
+    
+    // Apply sorting based on sortMode
+    return filtered.sort((a, b) => {
+      switch (sortMode) {
+        case 'alphabetical':
+          return compareByName(a, b);
+          
+        case 'level':
+          if (a.weight !== b.weight) {
+            return b.weight - a.weight; // Higher level first
+          }
+          return compareByName(a, b); // Secondary sort by name
+          
+        case 'winrate':
+          const aStats = statsByPlayer.get(a.id);
+          const bStats = statsByPlayer.get(b.id);
+          const aWinRate = aStats?.winRate ?? 0;
+          const bWinRate = bStats?.winRate ?? 0;
+          if (aWinRate !== bWinRate) {
+            return bWinRate - aWinRate; // Higher win rate first
+          }
+          return compareByName(a, b); // Secondary sort by name
+          
+        case 'session':
+          const aSelected = selectedPlayerIds.has(a.id);
+          const bSelected = selectedPlayerIds.has(b.id);
+          if (aSelected !== bSelected) {
+            return aSelected ? -1 : 1; // Selected players first
+          }
+          return compareByName(a, b); // Secondary sort by name
+          
+        default:
+          return compareByName(a, b);
+      }
+    });
+  }, [allPlayers, searchQuery, sortMode, selectedPlayerIds, statsByPlayer]);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
@@ -188,7 +221,6 @@ export default function PlayersScreen() {
         )}
       />
       
-      {/* Render the new unified modal */}
       <PlayerStatsModal
         visible={isStatsModalVisible}
         player={selectedPlayer}
@@ -206,13 +238,12 @@ export default function PlayersScreen() {
         onUpdateWeight={handleUpdateWeight}
       />
       
-      {/* EditNameModal is still needed, but now launched from PlayerStatsModal */}
       <EditNameModal
         visible={isEditNameModalVisible}
         player={selectedPlayer}
         onClose={() => {
           setIsEditNameModalVisible(false);
-          setStatsModalVisible(true); // Go back to stats modal
+          setStatsModalVisible(true);
         }}
         onSave={handleSaveName}
         darkMode={darkMode}
