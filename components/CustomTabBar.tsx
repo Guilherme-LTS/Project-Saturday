@@ -157,7 +157,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: CustomT
         const iconColor = isFocused ? '#0a84ff' : (darkMode ? '#c5c5c5ff' : '#2b2b2bff');
         
         // Apply visual centering offset for specific icons that have asymmetrical content
-        const iconStyle = route.name === 'History' ? { marginLeft: 1 } : {};
+        const iconStyle = route.name === 'History' ? { marginRight: 1 } : {};
 
         // For Android, use TouchableNativeFeedback with custom ripple
         if (Platform.OS === 'android') {

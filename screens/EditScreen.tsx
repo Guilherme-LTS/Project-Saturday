@@ -4,15 +4,11 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-// Component Imports
 import { TAB_BAR_HEIGHT } from '../components/CustomTabBar';
 import EditNameModal from '../components/EditNameModal';
 import PlayerCard from '../components/PlayerCard';
-import PlayerFundamentalsModal from '../components/PlayerFundamentalsModal';
-import PlayerOptionsModal from '../components/PlayerOptionsModal';
+import PlayerStatsModal from '../components/PlayerStatsModal'; // Import the new unified modal
 import TeamSizeSlider from '../components/TeamSizeSlider';
-
-// Hook and Store Imports
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
@@ -20,111 +16,76 @@ import { useThemeStore } from '../stores/themeStore';
 import { Player, PlayerFundamentals } from '../types';
 
 export default function EditScreen() {
-  // --- Hooks ---
   const insets = useSafeAreaInsets();
   const { allPlayers, selectedPlayerIds, togglePlayerActive, deletePlayer, updatePlayer } = usePlayersStore();
   const { teamSize, setTeamSize, matchHistory } = useGameStore();
   const { darkMode } = useThemeStore();
   const theme = useTheme(darkMode);
 
-  // --- UI State ---
   const [fadeHeight, setFadeHeight] = useState(60);
-  const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
+  
+  // State for modals
+  const [isStatsModalVisible, setStatsModalVisible] = useState(false);
   const [isEditNameModalVisible, setIsEditNameModalVisible] = useState(false);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const [isFundamentalsModalVisible, setIsFundamentalsModalVisible] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
 
-  // --- Memoized Values ---
-  const sessionPlayers = useMemo(
-    () => allPlayers.filter(p => selectedPlayerIds.has(p.id)),
-    [allPlayers, selectedPlayerIds]
-  );
+  const sessionPlayers = useMemo(() => allPlayers.filter(p => selectedPlayerIds.has(p.id)), [allPlayers, selectedPlayerIds]);
+  const activeCount = useMemo(() => sessionPlayers.filter((p) => p.active).length, [sessionPlayers]);
 
-  const activeCount = useMemo(
-    () => sessionPlayers.filter((p) => p.active).length,
-    [sessionPlayers]
-  );
-  
-  // Gets the most up-to-date player data from the store
-  const selectedPlayer = useMemo(
-    () => allPlayers.find(p => p.id === selectedPlayerId) || null,
-    [allPlayers, selectedPlayerId]
-  );
-
-  // --- Modal and Action Handlers ---
-  const openPlayerOptionsModal = (player: Player) => {
+  const openPlayerStatsModal = (player: Player) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedPlayerId(player.id);
-    setIsOptionsModalVisible(true);
+    setSelectedPlayer(player);
+    setStatsModalVisible(true);
   };
 
-  const closePlayerOptionsModal = () => {
-    setIsOptionsModalVisible(false);
-    setSelectedPlayerId(null);
-  };
-  
   const handleSaveName = (playerId: string, newName: string) => {
     updatePlayer(playerId, { name: newName });
     setIsEditNameModalVisible(false);
-    setSelectedPlayerId(null);
-  };
-
-  const handleEditName = () => {
-    setIsOptionsModalVisible(false);
-    setIsEditNameModalVisible(true);
+    setSelectedPlayer(prev => prev ? { ...prev, name: newName } : null);
+    setStatsModalVisible(true);
   };
 
   const handleUpdateWeight = (playerToUpdate: Player) => {
     const currentWeight = playerToUpdate.weight;
     const nextWeight = (currentWeight % 3) + 1 as 1 | 2 | 3;
     updatePlayer(playerToUpdate.id, { weight: nextWeight });
+    setSelectedPlayer(prev => prev ? { ...prev, weight: nextWeight } : null);
   };
 
   const handleDeletePlayer = (playerId: string) => {
     deletePlayer(playerId);
-    closePlayerOptionsModal();
+    setStatsModalVisible(false);
   };
   
-  const handleChangePhoto = async (player: Player, photoUri: string) => {
+  const handleChangePhoto = (player: Player, photoUri: string) => {
     updatePlayer(player.id, { photoUri });
+    setSelectedPlayer(prev => prev ? { ...prev, photoUri } : null);
   };
 
   const handleRemovePhoto = (playerId: string) => {
     updatePlayer(playerId, { photoUri: undefined });
-  };
-
-  const handleEditFundamentals = () => {
-    setIsOptionsModalVisible(false); // Close the options modal
-    setIsFundamentalsModalVisible(true); // Open the fundamentals modal
+    setSelectedPlayer(prev => prev ? { ...prev, photoUri: undefined } : null);
   };
 
   const handleSaveFundamentals = (playerId: string, fundamentals: PlayerFundamentals) => {
-    updatePlayer(playerId, { fundamentals }); // Update the player in the store
-    setIsFundamentalsModalVisible(false); // Close the modal
-    setIsOptionsModalVisible(true);
+    updatePlayer(playerId, { fundamentals });
   };
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       {sessionPlayers.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>
-            Nenhum jogador selecionado.
-          </Text>
-          <Text style={[styles.hint, { color: theme.placeholder }]}>
-            Vá para a tela 'Jogadores' para escolher quem vai jogar.
-          </Text>
+          <Text style={[styles.hint, { color: theme.placeholder, fontSize: 16 }]}>Nenhum jogador selecionado.</Text>
+          <Text style={[styles.hint, { color: theme.placeholder }]}>Vá para a tela 'Jogadores' para escolher quem vai jogar.</Text>
         </View>
       ) : (
         <View style={{ flex: 1, marginTop: 8 }}>
           <FlatList
-            data={
-              [...sessionPlayers].sort((a, b) => {
-                if (a.active && !b.active) return -1;
-                if (!a.active && b.active) return 1;
-                return a.name.localeCompare(b.name);
-              })
-            }
+            data={[...sessionPlayers].sort((a, b) => {
+              if (a.active && !b.active) return -1;
+              if (!a.active && b.active) return 1;
+              return a.name.localeCompare(b.name);
+            })}
             keyExtractor={(item) => item.id}
             numColumns={3}
             showsVerticalScrollIndicator={false}
@@ -133,7 +94,7 @@ export default function EditScreen() {
                 player={item}
                 darkMode={darkMode}
                 onToggleActive={() => togglePlayerActive(item.id)}
-                onLongPress={() => openPlayerOptionsModal(item)}
+                onLongPress={() => openPlayerStatsModal(item)}
                 variant="grid"
                 matchHistory={matchHistory}
               />
@@ -149,42 +110,29 @@ export default function EditScreen() {
             }}
             scrollEventThrottle={16}
           />
-          <LinearGradient
-            colors={[theme.background, `${theme.background}00`]}
-            style={styles.topFadeEffect}
-            pointerEvents="none"
-          />
-          {fadeHeight > 0 && (
-            <LinearGradient
-              colors={[`${theme.background}00`, theme.background]}
-              style={[styles.fadeEffect, { height: fadeHeight }]}
-              pointerEvents="none"
-            />
-          )}
+          <LinearGradient colors={[theme.background, `${theme.background}00`]} style={styles.topFadeEffect} pointerEvents="none" />
+          {fadeHeight > 0 && <LinearGradient colors={[`${theme.background}00`, theme.background]} style={[styles.fadeEffect, { height: fadeHeight }]} pointerEvents="none" />}
         </View>
       )}
       <View style={styles.editFooter}>
-        <TeamSizeSlider
-          value={teamSize}
-          onValueChange={setTeamSize}
-          darkMode={darkMode}
-        />
-        <Text style={[styles.hint, { color: theme.placeholder, textAlign: 'center' }]}>
-          Jogadores ativos: {activeCount}
-        </Text>
+        <TeamSizeSlider value={teamSize} onValueChange={setTeamSize} darkMode={darkMode} />
+        <Text style={[styles.hint, { color: theme.placeholder, textAlign: 'center' }]}>Jogadores ativos: {activeCount}</Text>
       </View>
 
-      <PlayerOptionsModal
-        visible={isOptionsModalVisible}
+      <PlayerStatsModal
+        visible={isStatsModalVisible}
         player={selectedPlayer}
-        onClose={closePlayerOptionsModal}
+        onClose={() => setStatsModalVisible(false)}
         darkMode={darkMode}
         matchHistory={matchHistory}
         onDelete={handleDeletePlayer}
-        onEditName={handleEditName}
+        onEditName={() => {
+          setStatsModalVisible(false);
+          setIsEditNameModalVisible(true);
+        }}
         onChangePhoto={handleChangePhoto}
         onRemovePhoto={handleRemovePhoto}
-        onEditFundamentals={handleEditFundamentals}
+        onSaveFundamentals={handleSaveFundamentals}
         onUpdateWeight={handleUpdateWeight}
       />
 
@@ -193,19 +141,9 @@ export default function EditScreen() {
         player={selectedPlayer}
         onClose={() => {
           setIsEditNameModalVisible(false);
-          setSelectedPlayerId(null);
+          setStatsModalVisible(true);
         }}
         onSave={handleSaveName}
-        darkMode={darkMode}
-      />
-      <PlayerFundamentalsModal
-        visible={isFundamentalsModalVisible}
-        player={selectedPlayer}
-        onClose={() => {
-          setIsFundamentalsModalVisible(false);
-          setIsOptionsModalVisible(true);
-        }}
-        onSave={handleSaveFundamentals}
         darkMode={darkMode}
       />
     </View>
