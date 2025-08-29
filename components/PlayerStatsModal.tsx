@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-    ActionSheetIOS,
-    Alert,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActionSheetIOS,
+  Alert,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
 import useTheme from '../hooks/useTheme';
@@ -33,6 +33,14 @@ const StarIcon = ({ filled, color, size = 28 }: { filled: boolean; color: string
 const EditIcon = ({ color, size = 20 }: { color: string; size?: number }) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <Path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></Path>
+    </Svg>
+);
+
+// --- SVG X Close Icon ---
+const CloseIcon = ({ color, size = 24 }: { color: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M18 6L6 18"></Path>
+        <Path d="M6 6l12 12"></Path>
     </Svg>
 );
 
@@ -129,6 +137,22 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
     );
   };
 
+  const handleDeletePlayer = () => {
+    Alert.alert(
+      "Apagar Jogador",
+      `Tem certeza que deseja apagar ${player.name}? Esta ação não pode ser desfeita.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Apagar",
+          style: "destructive",
+          onPress: () => onDelete(player.id),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const showPhotoSourceOptions = () => {
     Alert.alert(
       "Escolha uma fonte",
@@ -203,40 +227,86 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
     return (sum / 5).toFixed(1);
   };
 
+  const getTitleStyle = (name: string) => {
+    const baseSize = 22;
+    const smallSize = 18;
+    const verySmallSize = 16;
+    
+    if (name.length > 20) {
+      return { fontSize: verySmallSize, lineHeight: verySmallSize };
+    } else if (name.length > 15) {
+      return { fontSize: smallSize, lineHeight: smallSize };
+    }
+    return { fontSize: baseSize, lineHeight: baseSize };
+  };
+
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={[styles.modalView, { backgroundColor: theme.card }]}>
-              <TouchableOpacity onPress={showPhotoOptions} style={styles.avatarContainer} activeOpacity={0.7}>
-                <PlayerAvatar player={player} size={80} theme={theme} />
+
+              {/* --- Close Button --- */}
+              <TouchableOpacity 
+                style={styles.closeButton} 
+                onPress={onClose}
+                activeOpacity={0.7}
+              >
+                <CloseIcon color={theme.placeholder} size={24} />
               </TouchableOpacity>
-              
-              <TouchableOpacity onPress={onEditName} style={styles.modalTitleContainer} activeOpacity={0.7}>
-                <EditIcon color={theme.placeholder} size={16} />
-                <Text style={[styles.modalTitle, { color: theme.text }]}>{player.name}</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.statsContainer}>
-                <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
-                  Nível: {player.weight}
-                </Text>
-                {stats.winRate !== null && (
-                  <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
-                    • Vitória: {stats.winRate}% ({stats.gamesPlayed} jogos)
-                  </Text>
-                )}
-                <Text style={[styles.modalSubTitle, { color: theme.accentYellow, fontWeight: 'bold' }]}>
-                  • Média: {calculateAverage()}
-                </Text>
+
+              {/* --- Player Header --- */}
+              <View style={styles.playerHeaderContainer}>
+                <TouchableOpacity onPress={showPhotoOptions} activeOpacity={0.7}>
+                  <PlayerAvatar player={player} size={120} theme={theme} />
+                </TouchableOpacity>
+                <View style={styles.playerInfoContainer}>
+                    {/* Top-aligned content */}
+                    <View>
+                        <TouchableOpacity onPress={onEditName} style={styles.modalTitleContainer} activeOpacity={0.7}>
+                            <EditIcon color={theme.placeholder} size={16} />
+                            <Text style={[
+                              styles.modalTitle, 
+                              { color: theme.text },
+                              getTitleStyle(player.name)
+                            ]} numberOfLines={2}>
+                              {player.name}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {/* Bottom-aligned content */}
+                    <View>
+                        <View style={styles.statsContainer}>
+                                {stats.winRate !== null && (
+                                <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
+                                    Vitória: {stats.winRate}%
+                                </Text>
+                                )}
+                                {stats.winRate !== null && (
+                                <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
+                                •
+                                </Text>
+                                )}
+                                <Text style={[styles.modalSubTitle, { color: theme.accentYellow, fontWeight: 'bold' }]}>
+                                Média: {calculateAverage()}
+                                </Text>
+                        </View>
+                        <View style={styles.buttonGrid}>
+                            <TouchableOpacity style={[styles.gridButton, { backgroundColor: theme.accentGreen }]} onPress={() => onUpdateWeight(player)}>
+                            <Text style={[styles.buttonText]}>Nível: {player.weight}</Text>
+                            </TouchableOpacity>
+                         </View>
+                    </View>
+                </View>
               </View>
 
               <View style={styles.fundamentalsContainer}>
                 {FUNDAMENT_KEYS.map((key) => (
                     <View key={key} style={styles.fundamentRow}>
                         <Text style={[styles.fundamentLabel, { color: theme.text }]}>
-                            {FUNDAMENT_LABELS[key]}
+                            {FUNDAMENT_LABELS[key]}:
                         </Text>
                         <Rating
                             value={fundamentals[key]}
@@ -247,19 +317,8 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                     </View>
                 ))}
               </View>
-
-              <View style={styles.buttonGrid}>
-                <TouchableOpacity style={[styles.gridButton, { backgroundColor: theme.accentGreen }]} onPress={() => onUpdateWeight(player)}>
-                  <Text style={[styles.buttonText]}>Alterar Nível</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={[styles.button, { backgroundColor: theme.danger }]} onPress={() => onDelete(player.id)}>
-                <Text style={[styles.buttonText]}>Apagar Jogador</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                <Text style={[styles.cancelButtonText, { color: theme.placeholder }]}>Voltar</Text>
+              <TouchableOpacity style={[styles.deleteButton, { backgroundColor: theme.danger }]} onPress={handleDeletePlayer}>
+                <Text style={[styles.buttonText]}>Apagar</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
@@ -283,56 +342,60 @@ const styles = StyleSheet.create({
     padding: 20, 
     alignItems: 'stretch' 
   },
-  avatarContainer: { 
-    alignSelf: 'center', 
-    marginBottom: 12,
-    alignItems: 'center'
+  closeButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 1,
+    padding: 4,
+  },
+  playerHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10, // Add margin to account for close button
+    gap: 16,
+  },
+  playerInfoContainer: {
+    flex: 1,
+    alignSelf: 'stretch', // Ensures it takes full height of the parent
+    justifyContent: 'space-between', // Pushes content to top and bottom
   },
   modalTitleContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8, // <-- EDIT THIS VALUE TO CHANGE THE DISTANCE
-    marginBottom: 4,
-    paddingHorizontal: 20,
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 8
   },
   modalTitle: { 
     fontSize: 22, 
     fontWeight: 'bold',
-    textAlign: 'center',
-    flexShrink: 1, // Allows the text to wrap if it's too long
+    flexShrink: 1,
+    lineHeight: 22,
   },
   statsContainer: { 
     flexDirection: 'row', 
     justifyContent: 'center', 
-    marginBottom: 4, 
     gap: 10,
-    flexWrap: 'wrap'
   },
   modalSubTitle: { 
     fontSize: 14, 
-    textAlign: 'center' 
   },
   fundamentalsContainer: { 
-    marginTop: 15,
-    marginBottom: 0,
+    marginTop: 10,
+    marginBottom: 10,
   },
   buttonGrid: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
-    gap: 10, 
-    marginTop: 16 
+    gap: 10,
+    marginTop: 12, // Added margin to separate from stats
   },
   gridButton: { 
     flex: 1, 
     borderRadius: 8, 
-    paddingVertical: 12, 
+    paddingVertical: 12, // Increased padding for a better feel
     alignItems: 'center' 
-  },
-  button: { 
-    borderRadius: 8, 
-    paddingVertical: 12, 
-    marginTop: 10 
   },
   buttonText: { 
     fontWeight: 'bold', 
@@ -347,22 +410,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   fundamentLabel: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: '500',
   },
   ratingContainer: {
     flexDirection: 'row',
     gap: 6,
   },
-  cancelButton: {
-    padding: 10,
+  deleteButton: {
+    padding: 12,
     marginTop: 10,
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
+    borderRadius: 8,
+  }
 });
 
 export default PlayerStatsModal;
