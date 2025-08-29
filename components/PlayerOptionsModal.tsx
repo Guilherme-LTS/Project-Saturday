@@ -199,7 +199,7 @@ const PlayerOptionsModal: React.FC<PlayerOptionsModalProps> = ({
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: theme.primary }]}
+                style={[styles.button, { backgroundColor: theme.accentOrange }]}
                 onPress={onEditFundamentals}
               >
                 <Text style={[styles.buttonText, { color: theme.primaryText }]}>Editar Fundamentos</Text>

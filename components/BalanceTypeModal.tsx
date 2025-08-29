@@ -163,8 +163,8 @@ const BalanceTypeModal: React.FC<BalanceTypeModalProps> = ({ visible, darkMode, 
                 </ScrollView>
               </View>
               
-              <TouchableOpacity style={[styles.addButton, {backgroundColor: theme.primary + '30'}]} onPress={addPlayerPairing}>
-                  <Text style={[styles.addButtonText, {color: theme.primary}]}>+ Adicionar Regra</Text>
+              <TouchableOpacity style={[styles.addButton, {borderColor: theme.primary}]} onPress={addPlayerPairing}>
+                  <Text style={[styles.addButtonText, {color: theme.text}]}>Adicionar Regra</Text>
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
@@ -248,11 +248,13 @@ const styles = StyleSheet.create({
         padding: 8,
         marginLeft: 4
     },
-    addButton: {
-        borderRadius: 8,
+    addButton: { 
+        borderRadius: 8, 
         paddingVertical: 12,
-        alignItems: 'center',
-        marginBottom: 16
+        alignItems: 'center', 
+        marginBottom: 16,
+        borderWidth: 1.5,
+        backgroundColor: 'transparent',
     },
     addButtonText: {
         fontWeight: 'bold',

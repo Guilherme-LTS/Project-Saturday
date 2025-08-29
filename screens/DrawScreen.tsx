@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_HEIGHT } from '@/components/CustomTabBar';
@@ -103,7 +103,7 @@ export default function DrawScreen() {
             onSelectWinner={handleSelectWinner}
           />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <View>
             {teams.map((t, idx) => (
               <TeamCard
                 key={idx}
@@ -115,7 +115,7 @@ export default function DrawScreen() {
                 balanceMode={displayedBalanceMode}
               />
             ))}
-          </ScrollView>
+          </View>
         )}
       </View>
 

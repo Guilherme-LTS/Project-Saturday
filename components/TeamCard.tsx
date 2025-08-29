@@ -24,7 +24,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
       case 'level':
         return `Nível Total: ${(team.total / team.players.length).toFixed(2)}`;
       case 'winrate':
-        return `Média Vitórias: ${team.total.toFixed(1)}%`;
+        return `Média Vitórias: ${(team.total / team.players.length).toFixed(1)}%`;
       case 'fundamentals':
         return `Pontos Totais: ${team.total}`;
       default:
@@ -73,7 +73,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
         <Text style={[styles.total, { color: theme.placeholder }]}>{getBalanceText()}</Text>
         {balanceMode === 'fundamentals' && team.fundamentals && (
             <Text style={[styles.fundamentalsText, { color: theme.placeholder }]}>
-                S:{team.fundamentals.serve} P:{team.fundamentals.passing} L:{team.fundamentals.setting} A:{team.fundamentals.attacking} B:{team.fundamentals.blocking}
+                S:{team.fundamentals.serve} R:{team.fundamentals.passing} L:{team.fundamentals.setting} A:{team.fundamentals.attacking} B:{team.fundamentals.blocking}
             </Text>
         )}
       </View>
