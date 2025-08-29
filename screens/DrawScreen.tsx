@@ -28,6 +28,7 @@ export default function DrawScreen() {
     setShowCourtView,
     drawTeams,
     endMatchAndSubstitute,
+    matchHistory
   } = useGameStore();
   const { allPlayers, selectedPlayerIds } = usePlayersStore();
   const { darkMode } = useThemeStore();
@@ -113,6 +114,10 @@ export default function DrawScreen() {
                 isWinner={idx === winnerIndex}
                 onSelectWinner={() => handleSelectWinner(idx)}
                 balanceMode={displayedBalanceMode}
+                // New props for win probability
+                opposingTeam={teams[idx === 0 ? 1 : 0]}
+                matchHistory={matchHistory}
+                showCourtView={showCourtView}
               />
             ))}
           </View>
@@ -127,8 +132,8 @@ export default function DrawScreen() {
               onPress={() => setShowCourtView(!showCourtView)}
             >
               {showCourtView
-                ? <EyeOffIcon stroke={theme.text} width={24} height={24} />
-                : <EyeIcon stroke={theme.text} width={24} height={24} />}
+                ? <EyeIcon stroke={theme.text} width={24} height={24} />
+                : <EyeOffIcon stroke={theme.text} width={24} height={24} />}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.drawButton, {
@@ -165,12 +170,45 @@ export default function DrawScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: 16 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  hint: { fontSize: 12, marginTop: 4, marginBottom: 4, textAlign: 'center' },
-  buttonText: { fontWeight: 'bold', fontSize: 16, textAlign: 'center' },
-  toggleButton: { flex: 1, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-  drawButton: { flex: 3, borderRadius: 8, paddingVertical: 14, justifyContent: 'center', alignItems: 'center' },
-  drawFooter: { paddingTop: 4, paddingBottom: 8 },
-  actionsRow: { flexDirection: 'row', gap: 8 },
+  screen: {
+    flex: 1,
+    paddingHorizontal: 16
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 4,
+    textAlign: 'center'
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    textAlign: 'center'
+  },
+  toggleButton: {
+    flex: 1,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  drawButton: {
+    flex: 3,
+    borderRadius: 8,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  drawFooter: {
+    paddingTop: 4,
+    paddingBottom: 8
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
 });

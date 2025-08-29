@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import useTheme from '../hooks/useTheme';
-import { Team } from '../types';
+import { Match, Team } from '../types';
+import { calculateWinProbability } from '../utils/winProbabilityCalculator';
 import PlayerAvatar from './PlayerAvatar';
 
 interface TeamCardProps {
@@ -12,10 +13,22 @@ interface TeamCardProps {
   isWinner: boolean;
   onSelectWinner: () => void;
   balanceMode: 'level' | 'winrate' | 'fundamentals';
+  // New props for win probability
+  opposingTeam?: Team;
+  matchHistory?: Match[];
+  showCourtView?: boolean;
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({
-  team, teamNumber, darkMode, isWinner, onSelectWinner, balanceMode
+  team, 
+  teamNumber, 
+  darkMode, 
+  isWinner, 
+  onSelectWinner, 
+  balanceMode,
+  opposingTeam,
+  matchHistory = [],
+  showCourtView = true
 }) => {
   const theme = useTheme(darkMode);
 
@@ -32,15 +45,30 @@ const TeamCard: React.FC<TeamCardProps> = ({
     }
   };
 
+  // Calculate win probability when court view is not showing and opposing team exists
+  const getWinProbabilityText = () => {
+    if (!opposingTeam || showCourtView) return null;
+    
+    const { team1WinProb, team2WinProb } = calculateWinProbability(
+      teamNumber === 1 ? team : opposingTeam,
+      teamNumber === 1 ? opposingTeam : team,
+      matchHistory,
+      balanceMode
+    );
+    
+    const currentTeamProb = teamNumber === 1 ? team1WinProb : team2WinProb;
+    return `Chance de vitória: ${currentTeamProb.toFixed(1)}%`;
+  };
+
+  const winProbabilityText = getWinProbabilityText();
+
   return (
-    // The entire card is now a TouchableOpacity for selecting the winner
     <TouchableOpacity 
       style={[
         styles.card, 
         { 
           backgroundColor: theme.card, 
           borderColor: isWinner ? theme.accentGreen : theme.cardInactive,
-          // Add a subtle shadow or elevation when selected
           shadowColor: isWinner ? theme.accentGreen : '#000',
           shadowOpacity: isWinner ? 0.3 : 0.1,
           shadowRadius: isWinner ? 5 : 2,
@@ -52,12 +80,10 @@ const TeamCard: React.FC<TeamCardProps> = ({
     >
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>Time {teamNumber}</Text>
-        {/* Visual indicator for the winner */}
         {isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.accentGreen}]} />}
         {!isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.cardInactive}]} />}
       </View>
 
-      {/* Player list now uses a two-column grid layout */}
       <View style={styles.playerGrid}>
         {team.players.map(player => (
           <View key={player.id} style={styles.playerCell}>
@@ -71,10 +97,18 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
       <View style={[styles.footer, { borderTopColor: theme.cardInactive }]}>
         <Text style={[styles.total, { color: theme.placeholder }]}>{getBalanceText()}</Text>
+        
+        {/* Show win probability when court view is disabled */}
+        {winProbabilityText && (
+          <Text style={[styles.winProbabilityText, { color: theme.accentGreen }]}>
+            {winProbabilityText}
+          </Text>
+        )}
+        
         {balanceMode === 'fundamentals' && team.fundamentals && (
-            <Text style={[styles.fundamentalsText, { color: theme.placeholder }]}>
-                S:{team.fundamentals.serve} R:{team.fundamentals.passing} L:{team.fundamentals.setting} A:{team.fundamentals.attacking} B:{team.fundamentals.blocking}
-            </Text>
+          <Text style={[styles.fundamentalsText, { color: theme.placeholder }]}>
+            S:{team.fundamentals.serve} R:{team.fundamentals.passing} L:{team.fundamentals.setting} A:{team.fundamentals.attacking} B:{team.fundamentals.blocking}
+          </Text>
         )}
       </View>
     </TouchableOpacity>
@@ -84,9 +118,9 @@ const TeamCard: React.FC<TeamCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 8,
     borderWidth: 1.5,
-    overflow: 'hidden', // Ensures inner content respects the border radius
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
@@ -99,11 +133,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   winnerIndicator: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
   },
-  // New styles for the grid layout
   playerGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -111,15 +144,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   playerCell: {
-    width: '50%', // Each cell takes up half the width
+    width: '50%',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
     gap: 10,
   },
   playerName: {
     fontSize: 15,
-    flex: 1, // Allows text to shrink if needed
+    flex: 1,
   },
   footer: {
     padding: 12,
@@ -130,10 +164,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  winProbabilityText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   fundamentalsText: {
-      fontSize: 11,
-      marginTop: 4,
-      textAlign: 'center',
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: 'center',
   }
 });
 
