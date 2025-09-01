@@ -16,6 +16,7 @@ import { Match, Player, PlayerFundamentals } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
 import { pickImageFromGallery, takePhotoWithCamera } from '../utils/imageUtils';
 import PlayerAvatar from './PlayerAvatar';
+import PlayerGraphsModal from './PlayerGraphsModal';
 
 // --- SVG Star Icon ---
 const StarIcon = ({ filled, color, size = 28 }: { filled: boolean; color: string; size?: number }) => (
@@ -44,6 +45,13 @@ const CloseIcon = ({ color, size = 24 }: { color: string; size?: number }) => (
     </Svg>
 );
 
+// --- SVG Lupe Icon ---
+const LupeIcon = ({ color, size = 24 }: { color: string; size?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M11 19C15.4183 19 19 15.4183 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19Z"></Path>
+        <Path d="M21 21L16.65 16.65"></Path>
+    </Svg>
+);
 
 // --- Custom Rating Component ---
 interface RatingProps {
@@ -99,6 +107,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
 }) => {
   const theme = useTheme(darkMode);
   
+  const [isGraphsModalVisible, setGraphsModalVisible] = React.useState(false);
   const [fundamentals, setFundamentals] = React.useState<PlayerFundamentals>({
     serve: 3, passing: 3, setting: 3, attacking: 3, blocking: 3,
   });
@@ -246,6 +255,13 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={[styles.modalView, { backgroundColor: theme.card }]}>
+              <PlayerGraphsModal
+                visible={isGraphsModalVisible}
+                player={player}
+                darkMode={darkMode}
+                matchHistory={matchHistory}
+                onClose={() => setGraphsModalVisible(false)}
+              />
 
               {/* --- Close Button --- */}
               <TouchableOpacity 
@@ -279,6 +295,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                     {/* Bottom-aligned content */}
                     <View>
                         <View style={styles.statsContainer}>
+                              <TouchableOpacity style={styles.averageContainer} onPress={() => setGraphsModalVisible(true)} activeOpacity={0.7}>
                                 {stats.winRate !== null && (
                                 <Text style={[styles.modalSubTitle, { color: theme.placeholder }]}>
                                     Vitória: {stats.winRate}%
@@ -290,8 +307,11 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                                 </Text>
                                 )}
                                 <Text style={[styles.modalSubTitle, { color: theme.accentYellow, fontWeight: 'bold' }]}>
-                                Média: {calculateAverage()}
+                                  Média: {calculateAverage()}
                                 </Text>
+                                
+                                  <LupeIcon color={theme.placeholder} size={12} />
+                              </TouchableOpacity>
                         </View>
                         <View style={styles.buttonGrid}>
                             <TouchableOpacity style={[styles.gridButton, { backgroundColor: theme.accentGreen }]} onPress={() => onUpdateWeight(player)}>
@@ -363,7 +383,7 @@ const styles = StyleSheet.create({
   },
   modalTitleContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 8,
     marginTop: 8
   },
@@ -380,6 +400,11 @@ const styles = StyleSheet.create({
   },
   modalSubTitle: { 
     fontSize: 14, 
+  },
+  averageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   fundamentalsContainer: { 
     marginTop: 10,
