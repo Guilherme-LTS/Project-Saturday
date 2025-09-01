@@ -5,6 +5,8 @@ import useTheme from '../hooks/useTheme';
 import { Match, Team } from '../types';
 import { calculateWinProbability } from '../utils/winProbabilityCalculator';
 import PlayerAvatar from './PlayerAvatar';
+import FireIcon from '../assets/icons/fire.svg';
+import { getCurrentWinStreak } from '../utils/helpers';
 import { useGameStore } from '../stores/gameStore';
 
 interface TeamCardProps {
@@ -18,6 +20,7 @@ interface TeamCardProps {
   opposingTeam?: Team;
   matchHistory?: Match[];
   showCourtView?: boolean;
+  streakIconSize?: number;
 }
 
 const TeamCard: React.FC<TeamCardProps> = ({
@@ -29,10 +32,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
   balanceMode,
   opposingTeam,
   matchHistory = [],
-  showCourtView = true
+  showCourtView = true,
+  streakIconSize,
 }) => {
   const theme = useTheme(darkMode);
   const { teamDisplayNames } = useGameStore();
+  const fireSize = streakIconSize ?? 12;
 
   const getBalanceText = () => {
     switch (balanceMode) {
@@ -97,7 +102,14 @@ const TeamCard: React.FC<TeamCardProps> = ({
       <View style={styles.playerGrid}>
         {team.players.map(player => (
           <View key={player.id} style={styles.playerCell}>
-            <PlayerAvatar player={player} size={36} theme={theme} />
+            <View style={{ position: 'relative' }}>
+              {getCurrentWinStreak(player.id, matchHistory || []) >= 3 && (
+                <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
+                  <FireIcon width={fireSize} height={fireSize} fill="#ff3b30" />
+                </View>
+              )}
+              <PlayerAvatar player={player} size={36} theme={theme} />
+            </View>
             <Text style={[styles.playerName, { color: theme.text }]} numberOfLines={1}>
               {player.name}
             </Text>
@@ -196,7 +208,14 @@ const styles = StyleSheet.create({
   statsContainer: {
     alignItems: 'center',
     gap: 2,
-  }
+  },
+  streakBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: 'transparent',
+    zIndex: 5,
+  },
 });
 
 export default TeamCard;

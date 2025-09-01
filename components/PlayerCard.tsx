@@ -7,7 +7,8 @@ import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react
 import UserIcon from '../assets/icons/user.svg';
 import useTheme from '../hooks/useTheme';
 import { Match, Player } from '../types';
-import { calculatePlayerStats } from '../utils/helpers';
+import { calculatePlayerStats, getCurrentWinStreak } from '../utils/helpers';
+import FireIcon from '../assets/icons/fire.svg';
 import PlayerAvatar from './PlayerAvatar';
 
 interface PlayerCardProps {
@@ -51,6 +52,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   const inactiveStyle = { opacity: 0.6 };
   const inactiveTextStyle = { textDecorationLine: 'line-through' as 'line-through' };
 
+  const streak = getCurrentWinStreak(player.id, matchHistory);
+
   if (variant === 'grid') {
     return (
       <TouchableOpacity
@@ -62,7 +65,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         {hasPhoto ? (
           <ImageBackground
             source={{ uri: player.photoUri }}
-              style={styles.gridImageBackground}
+            style={styles.gridImageBackground}
             imageStyle={[styles.gridImageStyle, isInactive && inactiveStyle]} // Applies opacity to the image
           >
             <LinearGradient
@@ -79,8 +82,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           <View style={[styles.gridImageBackground, styles.gridNoImage, isInactive && inactiveStyle]}>
             <UserIcon width={60} height={60} fill={theme.placeholder} />
             <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.8)']}
-                style={styles.gridOverlayAbsolute}
+              colors={['transparent', 'rgba(0,0,0,0.8)']}
+              style={styles.gridOverlayAbsolute}
             >
               <Text style={[styles.gridPlayerName, isInactive && inactiveTextStyle]} numberOfLines={2}>
                 {player.name}
@@ -108,7 +111,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
       activeOpacity={0.8}
     >
       <View style={styles.listContent}>
-        <PlayerAvatar player={player} size={60} theme={theme} />
+        <View style={{ position: 'relative' }}>
+          {streak >= 3 && (
+            <View style={styles.streakBadge}>
+              <FireIcon width={18} height={18} fill="#ff3b30" />
+            </View>
+          )}
+          <PlayerAvatar player={player} size={60} theme={theme} />
+        </View>
 
         <View style={styles.playerInfo}>
           <Text style={[styles.playerName, { color: theme.text }]} numberOfLines={1}>
@@ -202,6 +212,16 @@ const styles = StyleSheet.create({
   gridOverlay: {
     padding: 8,
     zIndex: 1,
+  },
+  streakBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'transparent',
+    zIndex: 6,
   },
   gridOverlayAbsolute: {
     position: 'absolute',

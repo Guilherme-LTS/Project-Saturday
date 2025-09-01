@@ -2,8 +2,10 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import FireIcon from '../assets/icons/fire.svg';
 import useTheme from '../hooks/useTheme';
-import { Team } from '../types';
+import { Match, Team } from '../types';
+import { getCurrentWinStreak } from '../utils/helpers';
 import PlayerAvatar from './PlayerAvatar';
 
 interface CourtViewProps {
@@ -11,10 +13,13 @@ interface CourtViewProps {
   darkMode: boolean;
   winnerIndex: number | null;
   onSelectWinner: (index: number) => void;
+  matchHistory: Match[];
+  streakIconSize?: number;
 }
 
-const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onSelectWinner }) => {
+const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onSelectWinner, matchHistory, streakIconSize }) => {
   const theme = useTheme(darkMode);
+  const fireSize = streakIconSize ?? 20;
   
   const team1 = teams?.[0]?.players || [];
   const team2 = teams?.[1]?.players || [];
@@ -70,22 +75,40 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
     <View style={[styles.courtContainer, { backgroundColor: '#0873a7' }]}>
       <View style={styles.playingSurface}>
         <View style={styles.teamHalf}>
-          {team1.map(player => (
-            <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
-              {/* 2. Usar o novo componente PlayerAvatar */}
-              <PlayerAvatar player={player} size={avatarSize} theme={theme} />
-              <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
-            </View>
-          ))}
+          {team1.map(player => {
+            const streak = getCurrentWinStreak(player.id, matchHistory);
+            return (
+              <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
+                <View style={{ position: 'relative' }}>
+                  {streak >= 3 && (
+                    <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
+                      <FireIcon width={fireSize} height={fireSize} fill="#ff3b30" />
+                    </View>
+                  )}
+                  <PlayerAvatar player={player} size={avatarSize} theme={theme} />
+                </View>
+                <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
+              </View>
+            );
+          })}
         </View>
         <View style={styles.teamHalf}>
-          {team2.map(player => (
-            <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
-              {/* 2. Usar o novo componente PlayerAvatar também aqui */}
-              <PlayerAvatar player={player} size={avatarSize} theme={theme} />
-              <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
-            </View>
-          ))}
+          {team2.map(player => {
+            const streak = getCurrentWinStreak(player.id, matchHistory);
+            return (
+              <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
+                <View style={{ position: 'relative' }}>
+                  {streak >= 3 && (
+                    <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
+                      <FireIcon width={fireSize} height={fireSize} color="#ff3b30" />
+                    </View>
+                  )}
+                  <PlayerAvatar player={player} size={avatarSize} theme={theme} />
+                </View>
+                <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
 
@@ -195,6 +218,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffffff',
     marginTop: 4,
+  },
+  streakBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 18,
+    height: 18,
+    borderRadius: 8,
+    backgroundColor: 'transparent',
+    zIndex: 6,
   },
   netImage: {
     position: 'absolute',

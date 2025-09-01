@@ -9,19 +9,36 @@ import {
   View,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
-import { Path, Svg } from 'react-native-svg';
+import { Circle, Path, Svg } from 'react-native-svg';
 import useTheme from '../hooks/useTheme';
 import { usePlayersStore } from '../stores/playersStore';
 import { Match, Player } from '../types';
 import PlayerAvatar from './PlayerAvatar';
 import PlayerSelectModal from './PlayerSelectModal';
 
-const VersusIcon = ({ color, size = 24 }: { color: string; size?: number }) => (
-  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <Path d="M4 17.5l4-4-4-4" />
-    <Path d="M20 6.5l-4 4 4 4" />
-    <Path d="M8 13.5h8" />
+const PlusIcon = ({ color = 'white', size = 22 }: { color?: string; size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </Svg>
+);
+
+const XIcon = ({ color = 'white', size = 22 }: { color?: string; size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </Svg>
+);
+
+const SynergyItem = ({ player, winRate, label, theme }: { player: Player; winRate: number; label: string; theme: any }) => (
+  <View style={styles.synergyItem}>
+    <Text style={[styles.synergyLabel, { color: theme.placeholder }]}>{label}</Text>
+    <PlayerAvatar player={player} size={40} theme={theme} />
+    <Text style={[styles.synergyName, { color: theme.text }]} numberOfLines={1}>
+      {player.name.split(' ')[0]}
+    </Text>
+    <Text style={[styles.synergyWinRate, { color: winRate >= 50 ? theme.accentGreen : theme.accentRed }]}>
+      {Math.round(winRate)}%
+    </Text>
+  </View>
 );
 
 interface PlayerGraphsModalProps {
@@ -34,14 +51,70 @@ interface PlayerGraphsModalProps {
 
 const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, darkMode, matchHistory, onClose }) => {
   const [selectedOpponent, setSelectedOpponent] = useState<Player | null>(null);
+  const [comparisonMode, setComparisonMode] = useState<'partner' | 'opponent'>('opponent');
+  const [isOpponentModalVisible, setOpponentModalVisible] = useState(false);
+
+  const allPlayers = usePlayersStore(state => state.allPlayers);
+  const theme = useTheme(darkMode);
 
   const handleClose = () => {
     setSelectedOpponent(null);
+    setComparisonMode('opponent');
     onClose();
   };
-  const allPlayers = usePlayersStore((state) => state.allPlayers);
-    const [isOpponentModalVisible, setOpponentModalVisible] = useState(false);
-  const theme = useTheme(darkMode);
+
+  const synergyStats = useMemo(() => {
+    if (!player || matchHistory.length === 0) return null;
+
+    const otherPlayers = allPlayers.filter(p => p.id !== player.id);
+    const partnerStats: { player: Player; winRate: number; games: number }[] = [];
+    const opponentStats: { player: Player; winRate: number; games: number }[] = [];
+
+    otherPlayers.forEach(otherPlayer => {
+      let gamesAsPartner = 0,
+        winsAsPartner = 0;
+      let gamesAsOpponent = 0,
+        winsAsOpponent = 0;
+
+      matchHistory.forEach(match => {
+        const playerTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === player.id));
+        const otherPlayerTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === otherPlayer.id));
+
+        if (playerTeamIndex === -1 || otherPlayerTeamIndex === -1) return;
+
+        if (playerTeamIndex === otherPlayerTeamIndex) {
+          gamesAsPartner++;
+          if (match.winnerTeamIndex === playerTeamIndex) winsAsPartner++;
+        } else {
+          gamesAsOpponent++;
+          if (match.winnerTeamIndex === playerTeamIndex) winsAsOpponent++;
+        }
+      });
+
+      if (gamesAsPartner > 0) {
+        partnerStats.push({ player: otherPlayer, winRate: (winsAsPartner / gamesAsPartner) * 100, games: gamesAsPartner });
+      }
+      if (gamesAsOpponent > 0) {
+        opponentStats.push({ player: otherPlayer, winRate: (winsAsOpponent / gamesAsOpponent) * 100, games: gamesAsOpponent });
+      }
+    });
+
+    const minGames = 3;
+    const validPartnerStats = partnerStats.filter(s => s.games >= minGames);
+    const validOpponentStats = opponentStats.filter(s => s.games >= minGames);
+
+    if (validPartnerStats.length === 0 && validOpponentStats.length === 0) return null;
+
+    validPartnerStats.sort((a, b) => b.winRate - a.winRate);
+    validOpponentStats.sort((a, b) => b.winRate - a.winRate);
+
+    return {
+      bestPartner: validPartnerStats.length > 0 ? validPartnerStats[0] : null,
+      worstPartner: validPartnerStats.length > 1 ? validPartnerStats[validPartnerStats.length - 1] : null,
+      bestOpponent: validOpponentStats.length > 0 ? validOpponentStats[0] : null,
+      worstOpponent: validOpponentStats.length > 1 ? validOpponentStats[validOpponentStats.length - 1] : null,
+    };
+  }, [player, matchHistory, allPlayers]);
 
   const chartData = useMemo(() => {
     if (!player || matchHistory.length < 2) {
@@ -49,40 +122,77 @@ const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, 
     }
 
     const dailyStats: { [key: string]: { wins: number; total: number } } = {};
+    const contextualStats: { [key: string]: { wins: number; total: number } } = {};
 
     matchHistory.forEach(match => {
       const date = new Date(match.date).toLocaleDateString('pt-BR');
       if (!dailyStats[date]) {
         dailyStats[date] = { wins: 0, total: 0 };
+        contextualStats[date] = { wins: 0, total: 0 };
       }
 
       const playerTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === player.id));
+      if (playerTeamIndex === -1) return;
 
+      dailyStats[date].total++;
       if (playerTeamIndex === match.winnerTeamIndex) {
-        dailyStats[date].wins += 1;
+        dailyStats[date].wins++;
       }
-      dailyStats[date].total += 1;
+
+      if (selectedOpponent) {
+        const otherPlayerTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === selectedOpponent.id));
+        if (otherPlayerTeamIndex === -1) return;
+
+        const arePartners = playerTeamIndex === otherPlayerTeamIndex;
+        const areOpponents = playerTeamIndex !== otherPlayerTeamIndex;
+
+        if ((comparisonMode === 'partner' && arePartners) || (comparisonMode === 'opponent' && areOpponents)) {
+          contextualStats[date].total++;
+          if (playerTeamIndex === match.winnerTeamIndex) {
+            contextualStats[date].wins++;
+          }
+        }
+      }
     });
 
-    const sortedDates = Object.keys(dailyStats).sort((a, b) => new Date(a.split('/').reverse().join('-')).getTime() - new Date(b.split('/').reverse().join('-')).getTime());
+    const sortedDates = Object.keys(dailyStats).sort(
+      (a, b) => new Date(a.split('/').reverse().join('-')).getTime() - new Date(b.split('/').reverse().join('-')).getTime()
+    );
 
     const labels = sortedDates.map(date => date.slice(0, 5));
-    const data = sortedDates.map(date => {
+    const overallData = sortedDates.map(date => {
       const { wins, total } = dailyStats[date];
-      return Math.round((wins / total) * 100);
+      return total > 0 ? Math.round((wins / total) * 100) : 0;
     });
+
+    const datasets: any[] = [
+      {
+        data: overallData,
+        color: (opacity = 1) => theme.accentYellow,
+        strokeWidth: 2,
+      },
+    ];
+
+    if (selectedOpponent) {
+      const contextualData = sortedDates.map(date => {
+        const { wins, total } = contextualStats[date];
+        return total > 0 ? Math.round((wins / total) * 100) : -1;
+      });
+
+      const filteredContextualData = contextualData.map(value => (value === -1 ? null : value));
+
+      datasets.push({
+        data: filteredContextualData,
+        color: (opacity = 1) => (comparisonMode === 'partner' ? theme.accentGreen : theme.accentRed),
+        strokeWidth: 3,
+      });
+    }
 
     return {
       labels,
-      datasets: [
-        {
-          data,
-          color: (opacity = 1) => theme.accentYellow,
-          strokeWidth: 3,
-        },
-      ],
+      datasets,
     };
-  }, [player, matchHistory, theme]);
+  }, [player, matchHistory, theme, selectedOpponent, comparisonMode]);
 
   const chartConfig = {
     decimalPlaces: 0,
@@ -95,113 +205,166 @@ const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, 
     style: {
       borderRadius: 16,
     },
-    propsForLabels: {
-      fontSize: 10,
-    },
     propsForDots: {
       r: '4',
       strokeWidth: '2',
-      stroke: theme.accentYellow,
+      stroke: theme.card,
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '4',
+      stroke: theme.placeholder,
+      strokeWidth: 0.5,
+      opacity: 0.5,
+    },
+    propsForLabels: {
+      fontSize: 10,
     },
   };
 
   const opponents = useMemo(() => {
     if (!player) return [];
-    return allPlayers.filter((p) => p.id !== player.id);
+    return allPlayers.filter(p => p.id !== player.id);
   }, [allPlayers, player]);
 
-  const winrateAgainstOpponent = useMemo(() => {
+  const winRateWithOrAgainst = useMemo(() => {
     if (!player || !selectedOpponent || !matchHistory) return null;
 
     let wins = 0;
     let totalGames = 0;
 
-    matchHistory.forEach((match) => {
-      const playerTeamIndex = match.teams.findIndex((team) => team.players.some((p) => p.id === player.id));
-      const opponentTeamIndex = match.teams.findIndex((team) => team.players.some((p) => p.id === selectedOpponent.id));
+    matchHistory.forEach(match => {
+      const playerTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === player.id));
+      const opponentTeamIndex = match.teams.findIndex(team => team.players.some(p => p.id === selectedOpponent.id));
 
-      if (playerTeamIndex !== -1 && opponentTeamIndex !== -1 && playerTeamIndex !== opponentTeamIndex) {
-        totalGames++;
-        if (playerTeamIndex === match.winnerTeamIndex) {
-          wins++;
+      const areOpponents = playerTeamIndex !== opponentTeamIndex;
+      const arePartners = playerTeamIndex === opponentTeamIndex;
+
+      if (playerTeamIndex !== -1 && opponentTeamIndex !== -1) {
+        if (comparisonMode === 'opponent' && areOpponents) {
+          totalGames++;
+          if (playerTeamIndex === match.winnerTeamIndex) {
+            wins++;
+          }
+        } else if (comparisonMode === 'partner' && arePartners) {
+          totalGames++;
+          if (playerTeamIndex === match.winnerTeamIndex) {
+            wins++;
+          }
         }
       }
     });
 
-    if (totalGames === 0) return 'N/A';
+    if (totalGames < 3) return 'Poucos jogos';
     return `${Math.round((wins / totalGames) * 100)}%`;
-  }, [player, selectedOpponent, matchHistory]);
+  }, [player, selectedOpponent, matchHistory, comparisonMode]);
 
   if (!player) return null;
 
   return (
-    <Modal transparent visible={visible} animationType="fade"
-        onRequestClose={handleClose}>
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={handleClose}>
       <TouchableWithoutFeedback onPress={handleClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={[styles.modalView, { backgroundColor: theme.card }]}>
-              <Text style={[styles.modalTitle, { color: theme.text }]}>
-                Estatísticas de {player.name}
-              </Text>
-                            {chartData.labels.length > 1 ? (
+              {/* Close Button */}
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleClose}
+                activeOpacity={0.7}
+              >
+                <XIcon color={theme.placeholder} size={24} />
+              </TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: theme.text }]}>Estatísticas de {player.name}</Text>
+
+              {synergyStats && (
+                <View style={styles.synergyContainer}>
+                  <View style={styles.synergyRow}>
+                    {synergyStats.bestPartner && <SynergyItem player={synergyStats.bestPartner.player} winRate={synergyStats.bestPartner.winRate} label="Melhor Dupla" theme={theme} />}
+                    {synergyStats.worstPartner && <SynergyItem player={synergyStats.worstPartner.player} winRate={synergyStats.worstPartner.winRate} label="Pior Dupla" theme={theme} />}
+                    {synergyStats.bestOpponent && <SynergyItem player={synergyStats.bestOpponent.player} winRate={synergyStats.bestOpponent.winRate} label="Freguês" theme={theme} />}
+                    {synergyStats.worstOpponent && <SynergyItem player={synergyStats.worstOpponent.player} winRate={synergyStats.worstOpponent.winRate} label="Carrasco" theme={theme} />}
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.separator} />
+
+              <View style={{ paddingVertical: 16 }}>
+                <Text style={[styles.chartTitle, { color: theme.text }]}>Taxa de Vitória</Text>
                 <LineChart
                   data={chartData}
-                  width={Dimensions.get('window').width - 80}
+                  width={Dimensions.get('window').width * 0.85}
                   height={220}
                   chartConfig={chartConfig}
                   bezier
                   style={styles.chart}
-                  withInnerLines={false}
-                  withOuterLines={false}
+                  yAxisSuffix="%"
                   fromZero
-                  withShadow
+                  withHorizontalLines
+                  withVerticalLines
+                  withShadow={false}
                 />
-              ) : (
-                <View style={styles.noDataContainer}>
-                  <Text style={[styles.noDataText, { color: theme.placeholder }]}>
-                    Não há dados suficientes para exibir o gráfico de vitórias.
-                  </Text>
-                </View>
-              )}
-              <View style={styles.separator} />
+              </View>
 
               <View style={styles.comparisonContainer}>
-                                <View style={styles.pairingRow}>
-                  <View style={styles.playerAvatarContainer}>
-                    <PlayerAvatar player={player} size={60} theme={theme} />
-                    <Text style={[styles.playerName, { color: theme.text }]}>{player.name}</Text>
-                  </View>
-                  <Text style={[styles.vsText, { color: theme.placeholder }]}>VS</Text>
-                  <TouchableOpacity style={[styles.playerButton, { borderColor: theme.placeholder, borderWidth: selectedOpponent ? 0 : 2 }]} onPress={() => setOpponentModalVisible(true)}>
+                <View style={styles.playerAvatarContainer}>
+                  <PlayerAvatar player={player} size={60} theme={theme} />
+                  <Text style={[styles.playerName, { color: theme.text }]}>{player.name}</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.comparisonToggle,
+                    { backgroundColor: comparisonMode === 'partner' ? theme.accentGreen : theme.accentRed },
+                  ]}
+                  onPress={() => setComparisonMode(prev => (prev === 'opponent' ? 'partner' : 'opponent'))}
+                >
+                  {comparisonMode === 'partner' ? (
+                    <PlusIcon color={theme.primaryText} />
+                  ) : (
+                    <XIcon color={theme.primaryText} />
+                  )}
+                </TouchableOpacity>
+
+                <View style={styles.playerAvatarContainer}>
+                  <TouchableOpacity
+                    style={[styles.playerButton, { borderColor: theme.placeholder, borderWidth: selectedOpponent ? 0 : 2 }]}
+                    onPress={() => setOpponentModalVisible(true)}
+                  >
                     {selectedOpponent ? (
-                      <View style={styles.playerAvatarContainer}>
-                        <PlayerAvatar player={selectedOpponent} size={60} theme={theme} />
-                        <Text style={[styles.playerName, { color: theme.text }]}>{selectedOpponent.name}</Text>
-                      </View>
+                      <PlayerAvatar player={selectedOpponent} size={60} theme={theme} />
                     ) : (
                       <Text style={{ color: theme.placeholder, fontSize: 10 }}>Selecionar</Text>
                     )}
                   </TouchableOpacity>
+                  {selectedOpponent && (
+                    <Text style={[styles.playerName, { color: theme.text }]}>{selectedOpponent.name}</Text>
+                  )}
                 </View>
-                {selectedOpponent && (
-                  <Text style={[styles.winrateText, { color: theme.text, marginTop: 15 }]}>
-                    {winrateAgainstOpponent}
-                  </Text>
-                )}
               </View>
+
+              {winRateWithOrAgainst && (
+                <Text
+                  style={[
+                    styles.winrateText,
+                    { color: winRateWithOrAgainst === 'Poucos jogos' ? theme.placeholder : theme.text },
+                  ]}
+                >
+                  {winRateWithOrAgainst}
+                </Text>
+              )}
+
               <PlayerSelectModal
                 visible={isOpponentModalVisible}
                 players={opponents}
                 darkMode={darkMode}
                 onClose={() => setOpponentModalVisible(false)}
-                onSelectPlayer={(opponent) => setSelectedOpponent(opponent)}
-                title="Selecione um Oponente"
+                onSelectPlayer={player => {
+                  setSelectedOpponent(player);
+                  setOpponentModalVisible(false);
+                }}
+                title={comparisonMode === 'partner' ? 'Selecionar Dupla' : 'Selecionar Oponente'}
               />
-
-              <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-                <Text style={[styles.cancelButtonText, { color: theme.placeholder }]}>Voltar</Text>
-              </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -215,89 +378,107 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalView: {
     width: '92%',
     maxHeight: '95%',
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 20,
     alignItems: 'stretch',
   },
+  closeButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 1,
+    padding: 4,
+  },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
-  },
-  cancelButton: {
-    padding: 10,
-    marginTop: 20,
-  },
-  cancelButtonText: {
-    fontSize: 15,
-    textAlign: 'center',
-    fontWeight: '500',
+    marginBottom: 16,
   },
   chart: {
-    borderRadius: 16,
+    alignSelf: 'center',
   },
-  noDataContainer: {
-    height: 220,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noDataText: {
-    fontSize: 16,
+  chartTitle: {
     textAlign: 'center',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   separator: {
     height: 1,
-    backgroundColor: '#ccc',
-    marginVertical: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 16,
   },
   comparisonContainer: {
-    alignItems: 'center',
-  },
-  comparisonTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  pairingRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginVertical: 10,
+    paddingHorizontal: 16,
   },
   playerAvatarContainer: {
     alignItems: 'center',
     width: 80,
   },
   playerName: {
-    marginTop: 8,
+    marginTop: 4,
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '500',
     textAlign: 'center',
   },
-  playerButton: {
-    minWidth: 80,
-    minHeight: 90,
-    borderRadius: 8,
+  comparisonToggle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderStyle: 'dashed',
+    marginHorizontal: 16,
   },
-  vsText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  playerButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderStyle: 'dashed',
   },
   winrateText: {
     fontSize: 18,
     fontWeight: 'bold',
     marginTop: 10,
+    textAlign: 'center',
+  },
+  synergyContainer: {
+    marginBottom: 10,
+  },
+  synergyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-start',
+  },
+  synergyItem: {
+    alignItems: 'center',
+    width: '24%',
+  },
+  synergyLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  synergyName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  synergyWinRate: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });
 

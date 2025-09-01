@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Path, Svg } from 'react-native-svg';
+import { usePlayersStore } from '../stores/playersStore';
 import useTheme from '../hooks/useTheme';
 import { Match, Player, PlayerFundamentals } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
@@ -106,6 +107,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   onEditName, onChangePhoto, onRemovePhoto, onSaveFundamentals
 }) => {
   const theme = useTheme(darkMode);
+  const allPlayers = usePlayersStore((state) => state.allPlayers);
   
   const [isGraphsModalVisible, setGraphsModalVisible] = React.useState(false);
   const [fundamentals, setFundamentals] = React.useState<PlayerFundamentals>({
@@ -144,6 +146,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
     const blended = Math.round((levelByWin + levelByFund) / 2) as 1 | 2 | 3;
     return blended;
   }, [fundamentals, stats.gamesPlayed, stats.winRate]);
+
 
   const onPressLevel = React.useCallback(() => {
     if (!player) return;
@@ -382,6 +385,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                       </View>
                   ))}
                 </View>
+
                 <TouchableOpacity style={[styles.deleteButton, { backgroundColor: theme.danger }]} onPress={handleDeletePlayer}>
                   <Text style={[styles.buttonText]}>Apagar</Text>
                 </TouchableOpacity>
@@ -502,7 +506,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginTop: 10,
     borderRadius: 8,
-  }
+  },
 });
 
 export default PlayerStatsModal;

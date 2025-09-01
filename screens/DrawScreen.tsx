@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import React, { useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TAB_BAR_HEIGHT } from '@/components/CustomTabBar';
@@ -20,6 +20,7 @@ import { useThemeStore } from '../stores/themeStore';
 export default function DrawScreen() {
   const [isBalanceModalVisible, setBalanceModalVisible] = useState(false);
   const [scores, setScores] = useState<[number, number]>([0, 0]);
+  const [editingScore, setEditingScore] = useState<number | null>(null);
   const scoreUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const accelerationTimeout = useRef<NodeJS.Timeout | null>(null);
   const insets = useSafeAreaInsets();
@@ -158,6 +159,7 @@ export default function DrawScreen() {
             darkMode={darkMode}
             winnerIndex={winnerIndex}
             onSelectWinner={handleSelectWinner}
+            matchHistory={matchHistory}
           />
         ) : (
           <View>
@@ -194,13 +196,30 @@ export default function DrawScreen() {
                   {(teamDisplayNames?.[0] || 'Time 1')}
                 </Text>
               </View>
-              <View style={[styles.scoreBox, { backgroundColor: theme.border }]}>
+              <View style={[styles.scoreBox, { backgroundColor: '#2c3e50' }]}>
                 <TouchableOpacity onPressIn={() => handlePressIn(0, -1)} onPressOut={handlePressOut} activeOpacity={1}>
                   <View style={[styles.scoreButtonContainer, { backgroundColor: theme.accentRed }]}>
                     <Text style={[styles.scoreButtonText, { color: theme.primaryText }]}>-</Text>
                   </View>
                 </TouchableOpacity>
-                <Text style={[styles.scoreText, { color: theme.text }]}>{scores[0]}</Text>
+                {editingScore === 0 ? (
+                  <TextInput
+                    style={[styles.scoreText, { color: theme.text, paddingVertical: 0 }]}
+                    value={scores[0].toString()}
+                    onChangeText={(text) => {
+                      const newScores = [...scores] as [number, number];
+                      newScores[0] = parseInt(text, 10) || 0;
+                      setScores(newScores);
+                    }}
+                    keyboardType="number-pad"
+                    onBlur={() => setEditingScore(null)}
+                    autoFocus
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setEditingScore(0)}>
+                    <Text style={[styles.scoreText, { color: theme.text }]}>{scores[0]}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity onPressIn={() => handlePressIn(0, 1)} onPressOut={handlePressOut} activeOpacity={1}>
                   <View style={[styles.scoreButtonContainer, { backgroundColor: theme.accentGreen }]}>
                     <Text style={[styles.scoreButtonText, { color: theme.primaryText }]}>+</Text>
@@ -222,13 +241,30 @@ export default function DrawScreen() {
                   {(teamDisplayNames?.[1] || 'Time 2')}
                 </Text>
               </View>
-              <View style={[styles.scoreBox, { backgroundColor: theme.border }]}>
+              <View style={[styles.scoreBox, { backgroundColor: '#2c3e50' }]}>
                 <TouchableOpacity onPressIn={() => handlePressIn(1, -1)} onPressOut={handlePressOut} activeOpacity={1}>
                   <View style={[styles.scoreButtonContainer, { backgroundColor: theme.accentRed }]}>
                     <Text style={[styles.scoreButtonText, { color: theme.primaryText }]}>-</Text>
                   </View>
                 </TouchableOpacity>
-                <Text style={[styles.scoreText, { color: theme.text }]}>{scores[1]}</Text>
+                {editingScore === 1 ? (
+                  <TextInput
+                    style={[styles.scoreText, { color: theme.text, paddingVertical: 0 }]}
+                    value={scores[1].toString()}
+                    onChangeText={(text) => {
+                      const newScores = [...scores] as [number, number];
+                      newScores[1] = parseInt(text, 10) || 0;
+                      setScores(newScores);
+                    }}
+                    keyboardType="number-pad"
+                    onBlur={() => setEditingScore(null)}
+                    autoFocus
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setEditingScore(1)}>
+                    <Text style={[styles.scoreText, { color: theme.text }]}>{scores[1]}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity onPressIn={() => handlePressIn(1, 1)} onPressOut={handlePressOut} activeOpacity={1}>
                   <View style={[styles.scoreButtonContainer, { backgroundColor: theme.accentGreen }]}>
                     <Text style={[styles.scoreButtonText, { color: theme.primaryText }]}>+</Text>
