@@ -29,7 +29,7 @@ const MatchHistoryCard: React.FC<MatchHistoryCardProps> = ({ match, darkMode, on
           return (
             <View key={index} style={styles.teamRow}>
               <Text style={[styles.teamText, { color: theme.text, fontWeight: isWinner ? 'bold' : 'normal' }]}>
-                <Text style={{ color: theme.primary }}>Time {index + 1}: </Text>
+                <Text style={{ color: theme.primary }}>{match.teamNames?.[index] ?? `Time ${index + 1}`}: </Text>
                 {playerNames}
                 {isWinner && ' (🏆 Vencedor)'}
               </Text>

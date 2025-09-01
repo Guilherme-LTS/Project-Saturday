@@ -5,6 +5,7 @@ import useTheme from '../hooks/useTheme';
 import { Match, Team } from '../types';
 import { calculateWinProbability } from '../utils/winProbabilityCalculator';
 import PlayerAvatar from './PlayerAvatar';
+import { useGameStore } from '../stores/gameStore';
 
 interface TeamCardProps {
   team: Team;
@@ -31,6 +32,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
   showCourtView = true
 }) => {
   const theme = useTheme(darkMode);
+  const { teamDisplayNames } = useGameStore();
 
   const getBalanceText = () => {
     switch (balanceMode) {
@@ -45,22 +47,25 @@ const TeamCard: React.FC<TeamCardProps> = ({
     }
   };
 
-  // Calculate win probability when court view is not showing and opposing team exists
-  const getWinProbabilityText = () => {
-    if (!opposingTeam || showCourtView) return null;
-    
+  // Calculate win probability (number) when not showing court view
+  const currentTeamWinProb = (!opposingTeam || showCourtView) ? null : (() => {
     const { team1WinProb, team2WinProb } = calculateWinProbability(
       teamNumber === 1 ? team : opposingTeam,
       teamNumber === 1 ? opposingTeam : team,
       matchHistory,
       balanceMode
     );
-    
-    const currentTeamProb = teamNumber === 1 ? team1WinProb : team2WinProb;
-    return `Chance de vitória: ${currentTeamProb.toFixed(1)}%`;
-  };
+    return teamNumber === 1 ? team1WinProb : team2WinProb;
+  })();
 
-  const winProbabilityText = getWinProbabilityText();
+  // --- Stats for non-court view ---
+  const fundamentalsTotal = team.fundamentals
+    ? Object.values(team.fundamentals).reduce((sum, v) => sum + v, 0)
+    : 0;
+
+  const averageLevel = team.players.length > 0
+    ? team.players.reduce((sum, p) => sum + p.weight, 0) / team.players.length
+    : 0;
 
   return (
     <TouchableOpacity 
@@ -79,7 +84,12 @@ const TeamCard: React.FC<TeamCardProps> = ({
       activeOpacity={0.8}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.text }]}>Time {teamNumber}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.title, { color: theme.text }]}>{(teamDisplayNames?.[teamNumber - 1] || `Time ${teamNumber}`)}</Text>
+          {currentTeamWinProb !== null && (
+            <Text style={[styles.headerWinProb, { color: theme.accentGreen }]}>{currentTeamWinProb.toFixed(1)}%</Text>
+          )}
+        </View>
         {isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.accentGreen}]} />}
         {!isWinner && <View style={[styles.winnerIndicator, {backgroundColor: theme.cardInactive}]} />}
       </View>
@@ -96,13 +106,13 @@ const TeamCard: React.FC<TeamCardProps> = ({
       </View>
 
       <View style={[styles.footer, { borderTopColor: theme.cardInactive }]}>
-        <Text style={[styles.total, { color: theme.placeholder }]}>{getBalanceText()}</Text>
-        
-        {/* Show win probability when court view is disabled */}
-        {winProbabilityText && (
-          <Text style={[styles.winProbabilityText, { color: theme.accentGreen }]}>
-            {winProbabilityText}
-          </Text>
+        {showCourtView ? (
+          <Text style={[styles.total, { color: theme.placeholder }]}>{getBalanceText()}</Text>
+        ) : (
+          <View style={styles.statsContainer}>
+            <Text style={[styles.total, { color: theme.placeholder }]}>Pontos Fundamentos (total): {fundamentalsTotal}</Text>
+            <Text style={[styles.total, { color: theme.placeholder }]}>Nível (média): {averageLevel.toFixed(2)}</Text>
+          </View>
         )}
         
         {balanceMode === 'fundamentals' && team.fundamentals && (
@@ -128,9 +138,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 14,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  headerWinProb: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   winnerIndicator: {
     width: 12,
@@ -173,6 +192,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
     textAlign: 'center',
+  },
+  statsContainer: {
+    alignItems: 'center',
+    gap: 2,
   }
 });
 

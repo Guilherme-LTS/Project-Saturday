@@ -36,6 +36,7 @@ const useTheme = (darkMode: boolean) => {
     accentOrange: '#FFA000',
     accentGreen: '#4CAF50',
     accentGreenSelected: '#388E3C',
+    accentRed: '#FF6961',
     danger: 'red',
     inputArea: '#2c3e50'
   };

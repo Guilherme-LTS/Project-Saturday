@@ -38,6 +38,8 @@ export type Match = {
   date: string;
   teams: Team[];
   winnerTeamIndex: number;
+  scores: [number, number];
+  teamNames?: [string, string];
 };
 
 export type SortMode = 'alphabetical' | 'level' | 'winrate' | 'session';

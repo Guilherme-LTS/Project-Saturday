@@ -55,6 +55,8 @@ const MatchDetailCard: React.FC<MatchDetailCardProps> = ({
     }
   };
 
+  
+
   return (
     <TouchableOpacity
       onPress={toggleExpand}
@@ -65,7 +67,11 @@ const MatchDetailCard: React.FC<MatchDetailCardProps> = ({
       <View style={styles.teamsContainer}>
         {/* Bloco Time 1 */}
         <View style={[styles.teamColumn, { backgroundColor: match.winnerTeamIndex === 0 ? theme.accentGreen : theme.danger }]}>
-          <Text style={styles.teamTitle}>Time 1</Text>
+          <View style={styles.marqueeContainer}>
+            <Text style={styles.teamTitle} numberOfLines={1} ellipsizeMode="tail">
+              {match.teamNames?.[0] || 'Time 1'}
+            </Text>
+          </View>
           <Animated.View style={[styles.playerListContainer, animatedStyle]}>
             {/* 5. A lista de jogadores agora fica dentro de uma View com onLayout */}
             {/* Ela está posicionada de forma absoluta para não ocupar espaço inicial, mas ser medida */}
@@ -79,13 +85,21 @@ const MatchDetailCard: React.FC<MatchDetailCardProps> = ({
 
         {/* Bloco Central */}
         <View style={[styles.centerColumn, { backgroundColor: '#2c3e50' }]}>
-          <Text style={styles.matchTitle}>Partida</Text>
-          <Text style={styles.matchNumber}>{matchNumber}</Text>
+          <Text style={[styles.scoreText, styles.sideScore]}>{match.scores?.[0] ?? '-'}</Text>
+          <View style={styles.centerMiddle}>
+            <Text style={styles.matchTitle}>Partida</Text>
+            <Text style={styles.matchNumber}>{matchNumber}</Text>
+          </View>
+          <Text style={[styles.scoreText, styles.sideScore]}>{match.scores?.[1] ?? '-'}</Text>
         </View>
 
         {/* Bloco Time 2 */}
         <View style={[styles.teamColumn, { backgroundColor: match.winnerTeamIndex === 1 ? theme.accentGreen : theme.danger }]}>
-          <Text style={styles.teamTitle}>Time 2</Text>
+          <View style={styles.marqueeContainer}>
+            <Text style={styles.teamTitle} numberOfLines={1} ellipsizeMode="tail">
+              {match.teamNames?.[1] || 'Time 2'}
+            </Text>
+          </View>
           <Animated.View style={[styles.playerListContainer, animatedStyle]}>
             <View style={styles.measuringWrapper} onLayout={onLayout}>
               {match.teams[1].players.map(p => (
@@ -114,15 +128,22 @@ const styles = StyleSheet.create({
     },
     teamColumn: {
         flex: 1,
-        padding: 22,
+        paddingVertical: 18,
+        paddingHorizontal: 10,
         justifyContent: 'center',
         alignItems: 'center'
     },
     centerColumn: {
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 5,
+        justifyContent: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    centerMiddle: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 8,
     },
     matchTitle: {
         fontSize: 12,
@@ -134,11 +155,27 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#FFFFFF',
     },
+    scoreText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: 'rgba(255, 255, 255, 0.8)',
+        marginVertical: 2,
+    },
+    sideScore: {
+        minWidth: 28,
+        textAlign: 'center',
+    },
     teamTitle: {
         fontSize: 14,
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
+    },
+    marqueeContainer: {
+        width: '100%',
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     playerName: {
         fontSize: 13,

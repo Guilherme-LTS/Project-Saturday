@@ -120,17 +120,45 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
     }
   }, [player?.id]);
 
-  if (!player) return null;
+  const stats = React.useMemo(() => {
+    if (!player) return { gamesPlayed: 0, winRate: null as number | null };
+    return calculatePlayerStats(player.id, matchHistory);
+  }, [player?.id, matchHistory]);
 
-  const stats = calculatePlayerStats(player.id, matchHistory);
+  // Suggested level calculation using match history and fundamentals
+  const suggestedLevel: 1 | 2 | 3 = React.useMemo(() => {
+    // Average fundamentals (1-5)
+    const avgFund = (Object.values(fundamentals).reduce((acc, v) => acc + v, 0) / 5);
+    const levelByFund: 1 | 2 | 3 = avgFund < 2.5 ? 1 : avgFund < 3.8 ? 2 : 3;
+
+    // From win rate if available
+    const { gamesPlayed, winRate } = stats;
+    let levelByWin: 1 | 2 | 3 = levelByFund;
+    if (winRate !== null) {
+      levelByWin = winRate < 45 ? 1 : winRate < 60 ? 2 : 3;
+    }
+
+    // Confidence: use win-based suggestion when we have a bit of history
+    if (gamesPlayed >= 5) return levelByWin;
+    // Blend when low samples
+    const blended = Math.round((levelByWin + levelByFund) / 2) as 1 | 2 | 3;
+    return blended;
+  }, [fundamentals, stats.gamesPlayed, stats.winRate]);
+
+  const onPressLevel = React.useCallback(() => {
+    if (!player) return;
+    onUpdateWeight(player);
+  }, [onUpdateWeight, player?.id, player]);
 
   const updateFundament = (fundament: keyof PlayerFundamentals, value: 1 | 2 | 3 | 4 | 5) => {
     const newFundamentals = { ...fundamentals, [fundament]: value };
     setFundamentals(newFundamentals);
+    if (!player) return;
     onSaveFundamentals(player.id, newFundamentals);
   };
 
   const handleRemovePhoto = () => {
+    if (!player) return;
     Alert.alert(
       "Remover Foto",
       "Tem certeza que deseja remover a foto deste jogador?",
@@ -147,6 +175,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   };
 
   const handleDeletePlayer = () => {
+    if (!player) return;
     Alert.alert(
       "Apagar Jogador",
       `Tem certeza que deseja apagar ${player.name}? Esta ação não pode ser desfeita.`,
@@ -163,17 +192,18 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   };
 
   const showPhotoSourceOptions = () => {
+    if (!player) return;
     Alert.alert(
       "Escolha uma fonte",
       "",
       [
         { text: "Galeria", onPress: async () => {
             const uri = await pickImageFromGallery();
-            if (uri) onChangePhoto(player, uri);
+            if (uri && player) onChangePhoto(player, uri);
         }},
         { text: "Câmera", onPress: async () => {
             const uri = await takePhotoWithCamera();
-            if (uri) onChangePhoto(player, uri);
+            if (uri && player) onChangePhoto(player, uri);
         }},
         { text: "Cancelar", style: "cancel" }
       ],
@@ -182,11 +212,12 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   };
 
   const showPhotoOptions = () => {
+    if (!player) return;
     if (Platform.OS === 'ios') {
-        const options = player.photoUri
+        const options = player?.photoUri
             ? ['Trocar Foto', 'Remover Foto', 'Cancelar']
             : ['Adicionar Foto', 'Cancelar'];
-        const destructiveButtonIndex = player.photoUri ? 1 : -1;
+        const destructiveButtonIndex = player?.photoUri ? 1 : -1;
         const cancelButtonIndex = options.length - 1;
 
         ActionSheetIOS.showActionSheetWithOptions(
@@ -196,7 +227,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                 destructiveButtonIndex,
             },
             (buttonIndex) => {
-                if (player.photoUri) {
+                if (player?.photoUri) {
                     if (buttonIndex === 0) showPhotoSourceOptions();
                     else if (buttonIndex === 1) handleRemovePhoto();
                 } else {
@@ -207,7 +238,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
         return;
     }
 
-    if (player.photoUri) {
+    if (player?.photoUri) {
       Alert.alert(
         'Alterar Foto',
         '',
@@ -255,13 +286,15 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
             <View style={[styles.modalView, { backgroundColor: theme.card }]}>
-              <PlayerGraphsModal
-                visible={isGraphsModalVisible}
-                player={player}
-                darkMode={darkMode}
-                matchHistory={matchHistory}
-                onClose={() => setGraphsModalVisible(false)}
-              />
+              {player && (
+                <PlayerGraphsModal
+                  visible={isGraphsModalVisible}
+                  player={player}
+                  darkMode={darkMode}
+                  matchHistory={matchHistory}
+                  onClose={() => setGraphsModalVisible(false)}
+                />
+              )}
 
               {/* --- Close Button --- */}
               <TouchableOpacity 
@@ -273,6 +306,7 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
               </TouchableOpacity>
 
               {/* --- Player Header --- */}
+              {player && (
               <View style={styles.playerHeaderContainer}>
                 <TouchableOpacity onPress={showPhotoOptions} activeOpacity={0.7}>
                   <PlayerAvatar player={player} size={120} theme={theme} />
@@ -314,32 +348,45 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
                               </TouchableOpacity>
                         </View>
                         <View style={styles.buttonGrid}>
-                            <TouchableOpacity style={[styles.gridButton, { backgroundColor: theme.accentGreen }]} onPress={() => onUpdateWeight(player)}>
-                            <Text style={[styles.buttonText]}>Nível: {player.weight}</Text>
+                            <TouchableOpacity
+                              style={[styles.gridButton, { backgroundColor: theme.accentGreen }]}
+                              onPress={onPressLevel}
+                              activeOpacity={0.7}
+                              delayPressIn={0}
+                            >
+                              <View style={styles.levelTextRow}>
+                                <Text style={styles.buttonText}>Nível: {player.weight}</Text>
+                                <Text style={[styles.suggestedText, { color: theme.placeholder }]}> (sugerido: {suggestedLevel})</Text>
+                              </View>
                             </TouchableOpacity>
                          </View>
                     </View>
                 </View>
               </View>
+              )}
 
-              <View style={styles.fundamentalsContainer}>
-                {FUNDAMENT_KEYS.map((key) => (
-                    <View key={key} style={styles.fundamentRow}>
-                        <Text style={[styles.fundamentLabel, { color: theme.text }]}>
-                            {FUNDAMENT_LABELS[key]}:
-                        </Text>
-                        <Rating
-                            value={fundamentals[key]}
-                            onValueChange={(value) => updateFundament(key, value)}
-                            color={theme.accentYellow}
-                            inactiveColor={theme.placeholder}
-                        />
-                    </View>
-                ))}
-              </View>
-              <TouchableOpacity style={[styles.deleteButton, { backgroundColor: theme.danger }]} onPress={handleDeletePlayer}>
-                <Text style={[styles.buttonText]}>Apagar</Text>
-              </TouchableOpacity>
+              {player && (
+              <>
+                <View style={styles.fundamentalsContainer}>
+                  {FUNDAMENT_KEYS.map((key) => (
+                      <View key={key} style={styles.fundamentRow}>
+                          <Text style={[styles.fundamentLabel, { color: theme.text }]}>
+                              {FUNDAMENT_LABELS[key]}:
+                          </Text>
+                          <Rating
+                              value={fundamentals[key]}
+                              onValueChange={(value) => updateFundament(key, value)}
+                              color={theme.accentYellow}
+                              inactiveColor={theme.placeholder}
+                          />
+                      </View>
+                  ))}
+                </View>
+                <TouchableOpacity style={[styles.deleteButton, { backgroundColor: theme.danger }]} onPress={handleDeletePlayer}>
+                  <Text style={[styles.buttonText]}>Apagar</Text>
+                </TouchableOpacity>
+              </>
+              )}
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -427,6 +474,15 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     textAlign: 'center', 
     color: '#FFFFFF' 
+  },
+  suggestedText: {
+    fontSize: 12,
+    fontWeight: '400',
+  },
+  levelTextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   fundamentRow: {
     flexDirection: 'row',

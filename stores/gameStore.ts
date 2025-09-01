@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Match, Player, PlayerFundamentals, PlayerPairing, Team, TeamSize } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
-import { loadMatchHistory, saveMatchHistory } from '../utils/storage';
+import { loadMatchHistory, saveMatchHistory, loadTeamDisplayNames, saveTeamDisplayNames } from '../utils/storage';
+
 import { usePlayersStore } from './playersStore';
 
 
@@ -62,12 +63,16 @@ interface GameState {
   leftoverPlayerIds: string[];
   playersWhoJustEnteredIds: Set<string>;
   playerPairings: PlayerPairing[]; // Now an array
+  teamDisplayNames: [string, string];
 
   // Actions
   setTeamSize: (size: TeamSize) => void;
   setWinnerIndex: (index: number | null) => void;
   setBalanceMode: (mode: 'level' | 'winrate' | 'fundamentals') => void;
   setShowCourtView: (show: boolean) => void;
+  setTeamDisplayName: (index: 0 | 1, name: string) => void;
+  loadTeamDisplayNames: () => Promise<void>;
+
   addPlayerPairing: () => void;
   updatePlayerPairing: (id: string, updates: Partial<Omit<PlayerPairing, 'id'>>) => void;
   removePlayerPairing: (id: string) => void;
@@ -76,10 +81,11 @@ interface GameState {
   clearPlayerPairings: () => void;
   // --- MODIFICATION END ---
   addMatch: (match: Match) => void;
+
   deleteAllMatches: () => void;
   loadMatchHistory: () => Promise<void>;
   drawTeams: (sessionPlayers: Player[]) => void;
-  endMatchAndSubstitute: () => void;
+  endMatchAndSubstitute: (scores: [number, number]) => void;
   deleteMatch: (matchId: string) => void;
   deleteMatchesByDate: (dateTitle: string) => void;
 }
@@ -96,12 +102,29 @@ export const useGameStore = create<GameState>()(
     leftoverPlayerIds: [],
     playersWhoJustEnteredIds: new Set(),
     playerPairings: [], // Initialize as an empty array
+    teamDisplayNames: ['Time 1', 'Time 2'],
 
     setTeamSize: (size) => set({ teamSize: size }),
     setWinnerIndex: (index) => set({ winnerIndex: index }),
     setBalanceMode: (mode) => set({ balanceMode: mode }),
     setShowCourtView: (show) => set({ showCourtView: show }),
     
+    // Team name actions
+    setTeamDisplayName: (index, name) => {
+      set((state) => {
+        const next: [string, string] = [...state.teamDisplayNames] as [string, string];
+        // Allow empty string while editing; UI will fallback when rendering
+        next[index] = name;
+        // persist
+        saveTeamDisplayNames(next);
+        return { teamDisplayNames: next };
+      });
+    },
+    loadTeamDisplayNames: async () => {
+      const names = await loadTeamDisplayNames();
+      set({ teamDisplayNames: names });
+    },
+
     // New actions for managing pairing rules
     addPlayerPairing: () => set(state => ({
         playerPairings: [
@@ -302,7 +325,7 @@ export const useGameStore = create<GameState>()(
       });
     },
 
-    endMatchAndSubstitute: () => {
+    endMatchAndSubstitute: (scores) => {
         const { teams, winnerIndex, leftoverPlayerIds, playersWhoJustEnteredIds, addMatch } = get();
         const { substitutePlayers } = usePlayersStore.getState();
   
@@ -313,6 +336,8 @@ export const useGameStore = create<GameState>()(
           date: new Date().toISOString(),
           teams: teams,
           winnerTeamIndex: winnerIndex,
+          scores: scores,
+          teamNames: get().teamDisplayNames,
         });
   
         const playersToEnterIds = leftoverPlayerIds;

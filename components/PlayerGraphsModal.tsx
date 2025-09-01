@@ -77,7 +77,7 @@ const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, 
       datasets: [
         {
           data,
-          color: (opacity = 1) => theme.accentGreen,
+          color: (opacity = 1) => theme.accentYellow,
           strokeWidth: 3,
         },
       ],
@@ -90,7 +90,7 @@ const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, 
     backgroundGradientTo: theme.card,
     backgroundGradientFromOpacity: 0,
     backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => theme.accentGreen,
+    color: (opacity = 1) => theme.accentYellow,
     labelColor: (opacity = 1) => theme.placeholder,
     style: {
       borderRadius: 16,
@@ -101,7 +101,7 @@ const PlayerGraphsModal: React.FC<PlayerGraphsModalProps> = ({ visible, player, 
     propsForDots: {
       r: '4',
       strokeWidth: '2',
-      stroke: theme.accentGreen,
+      stroke: theme.accentYellow,
     },
   };
 

@@ -7,9 +7,11 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Import components
@@ -34,7 +36,8 @@ import TrashIcon from '../assets/icons/trash.svg';
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { darkMode, setDarkMode } = useThemeStore();
-  const { deleteAllMatches, matchHistory } = useGameStore();
+  const { deleteAllMatches, matchHistory, teamDisplayNames, setTeamDisplayName } = useGameStore();
+
   const { deleteAllPlayers, allPlayers } = usePlayersStore();
   const theme = useTheme(darkMode);
 
@@ -141,6 +144,42 @@ export default function SettingsScreen() {
               </View>
             </View>
           </TouchableOpacity>
+        </View>
+
+        {/* Team Names Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Nomes dos Times</Text>
+          <View style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardInactive }]}> 
+            <View style={styles.settingLeft}>
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>Time 1</Text>
+                <Text style={[styles.settingDescription, { color: theme.placeholder }]}>Nome exibido para o primeiro time</Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.textInput, { color: theme.text, borderColor: theme.inputArea, backgroundColor: theme.inputArea }]}
+              placeholder="Time 1"
+              placeholderTextColor={theme.placeholder}
+              value={teamDisplayNames?.[0]}
+              onChangeText={(t) => setTeamDisplayName(0, t)}
+            />
+          </View>
+
+          <View style={[styles.settingItem, { backgroundColor: theme.card, borderColor: theme.cardInactive }]}> 
+            <View style={styles.settingLeft}>
+              <View style={styles.settingTextContainer}>
+                <Text style={[styles.settingTitle, { color: theme.text }]}>Time 2</Text>
+                <Text style={[styles.settingDescription, { color: theme.placeholder }]}>Nome exibido para o segundo time</Text>
+              </View>
+            </View>
+            <TextInput
+              style={[styles.textInput, { color: theme.text, borderColor: theme.inputArea, backgroundColor: theme.inputArea }]}
+              placeholder="Time 2"
+              placeholderTextColor={theme.placeholder}
+              value={teamDisplayNames?.[1]}
+              onChangeText={(t) => setTeamDisplayName(1, t)}
+            />
+          </View>
         </View>
 
         {/* Appearance Section */}
@@ -341,5 +380,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  textInput: {
+    minWidth: 120,
+    maxWidth: 180,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginLeft: 12,
   },
 });

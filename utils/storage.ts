@@ -5,6 +5,7 @@ const PLAYERS_STORAGE_KEY = '@VolleyballDraw:players';
 const THEME_STORAGE_KEY = '@VolleyballDraw:theme';
 const SELECTED_IDS_STORAGE_KEY = '@VolleyballDraw:selectedIds';
 const HISTORY_STORAGE_KEY = '@VolleyballDraw:history';
+const TEAM_NAMES_STORAGE_KEY = '@VolleyballDraw:teamNames';
 
 // --- Funções de Jogadores ---
 export async function savePlayers(players: Player[]): Promise<void> {
@@ -15,6 +16,29 @@ export async function savePlayers(players: Player[]): Promise<void> {
   } catch (e) {
     console.error("Erro ao salvar jogadores", e);
   }
+}
+
+// --- Funções de Nomes dos Times ---
+export async function saveTeamDisplayNames(teamNames: [string, string]): Promise<void> {
+  try {
+    const jsonValue = JSON.stringify(teamNames);
+    await AsyncStorage.setItem(TEAM_NAMES_STORAGE_KEY, jsonValue);
+  } catch (e) {
+    console.error('Erro ao salvar nomes dos times', e);
+  }
+}
+
+export async function loadTeamDisplayNames(): Promise<[string, string]> {
+  try {
+    const jsonValue = await AsyncStorage.getItem(TEAM_NAMES_STORAGE_KEY);
+    if (jsonValue) {
+      const arr = JSON.parse(jsonValue);
+      if (Array.isArray(arr) && arr.length === 2) return [String(arr[0]), String(arr[1])];
+    }
+  } catch (e) {
+    console.error('Erro ao carregar nomes dos times', e);
+  }
+  return ['Time 1', 'Time 2'];
 }
 
 export async function loadPlayers(): Promise<Player[]> {

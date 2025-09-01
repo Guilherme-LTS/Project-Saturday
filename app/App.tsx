@@ -22,12 +22,14 @@ export default function App() {
   const loadTheme = useThemeStore((state) => state.loadTheme);
   const loadInitialData = usePlayersStore((state) => state.loadInitialData);
   const loadMatchHistory = useGameStore((state) => state.loadMatchHistory);
+  const loadTeamDisplayNames = useGameStore((state) => state.loadTeamDisplayNames);
 
   useEffect(() => {
     const initializeApp = async () => {
       await loadTheme();
       await loadInitialData();
       await loadMatchHistory();
+      await loadTeamDisplayNames();
     };
     
     initializeApp();
