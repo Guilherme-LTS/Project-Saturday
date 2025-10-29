@@ -1,6 +1,3 @@
-// components/ImportModal.tsx
-import { Camera, CameraView } from 'expo-camera';
-import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -8,25 +5,26 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+
+// External Dependencies
+import { Camera, CameraView } from 'expo-camera';
+import * as Haptics from 'expo-haptics';
+
+// Icons
+import FileIcon from '../assets/icons/file.svg';
+import QRCodeIcon from '../assets/icons/qr-code.svg';
+
+// Hooks
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
-import {
-  AppData,
-  importFromJSON,
-  importFromQRCode,
-  importFromText
-} from '../utils/exportImportUtils';
 
-// Import icons
-import FileIcon from '../assets/icons/file.svg';
-import QRCodeIcon from '../assets/icons/qr-code.svg';
-import ShareIcon from '../assets/icons/share.svg';
+// Types & Utils
+import { AppData, importFromJSON, importPlayerFromQRCode } from '../utils/exportImportUtils';
 
 interface ImportModalProps {
   visible: boolean;
@@ -34,15 +32,14 @@ interface ImportModalProps {
   darkMode: boolean;
 }
 
-type ImportStep = 'select' | 'text-input' | 'qr-scanner';
+type ImportStep = 'select' | 'qr-scanner';
 
 const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode }) => {
   const theme = useTheme(darkMode);
   const { setAllPlayers, setSelectedPlayerIds } = usePlayersStore();
-  const { matchHistory, addMatch, deleteAllMatches } = useGameStore();
+  const { addMatch } = useGameStore();
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<ImportStep>('select');
-  const [textInput, setTextInput] = useState('');
   const [isScanned, setIsScanned] = useState(false);
 
   const handleImportComplete = (importedData: AppData) => {
@@ -55,15 +52,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
           text: 'Importar',
           style: 'destructive',
           onPress: () => {
-            // Replace all data
             setAllPlayers(importedData.players);
             setSelectedPlayerIds(new Set(importedData.selectedPlayerIds));
-            
-            // Add match history (you might want to replace instead)
             importedData.matchHistory.forEach(match => {
               addMatch(match);
             });
-
             Alert.alert('Sucesso', 'Dados importados com sucesso!');
             handleClose();
           }
@@ -95,47 +88,46 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
     setCurrentStep('qr-scanner');
   };
 
-  const handleBarcodeScanned = ({ data }: { data: string }) => {
-    if (isScanned) return; // Prevent multiple triggers
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    if (isScanned) return;
     setIsScanned(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    const importedData = importFromQRCode(data);
-    if (importedData) {
-      handleImportComplete(importedData);
-    } else {
-      // importFromQRCode shows its own alert on failure
-      setIsScanned(false); // Allow user to try scanning again
-    }
-  };
-
-  const handleImportText = () => {
-    setCurrentStep('text-input');
-    setTextInput('');
-  };
-
-  const handleTextImportSubmit = () => {
-    if (!textInput.trim()) {
-      Alert.alert('Erro', 'Cole os dados de backup no campo de texto');
-      return;
-    }
-
-    setIsLoading(true);
     try {
-      const importedData = importFromText(textInput.trim());
-      if (importedData) {
-        handleImportComplete(importedData);
+      const importedPlayer = await importPlayerFromQRCode(data);
+      if (importedPlayer) {
+        Alert.alert(
+          'Adicionar Jogador',
+          `Deseja adicionar ${importedPlayer.name} à lista de jogadores?`,
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setIsScanned(false) },
+            {
+              text: 'Adicionar',
+              style: 'default',
+              onPress: () => {
+                const store = usePlayersStore.getState();
+                const allPlayers = Array.isArray(store.allPlayers) ? store.allPlayers : [];
+                if (allPlayers.some(p => p.id === importedPlayer.id)) {
+                  Alert.alert('Jogador Existente', 'Este jogador já está cadastrado no sistema.');
+                } else {
+                  setAllPlayers([...allPlayers, importedPlayer]);
+                  Alert.alert('Sucesso', 'Jogador adicionado com sucesso!');
+                  handleClose();
+                }
+              }
+            }
+          ]
+        );
       }
     } catch (error) {
-      Alert.alert('Erro', 'Dados de texto inválidos');
-    } finally {
-      setIsLoading(false);
+      console.error('Error scanning QR code:', error);
+      Alert.alert('Erro', 'QR Code inválido ou corrompido');
+      setIsScanned(false);
     }
   };
 
   const handleClose = () => {
     setCurrentStep('select');
-    setTextInput('');
     setIsScanned(false);
     onClose();
   };
@@ -178,90 +170,26 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
           </Text>
         </View>
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.optionButton, { backgroundColor: theme.background }]}
-        onPress={handleImportText}
-        disabled={isLoading}
-      >
-        <ShareIcon stroke={theme.primary} width={24} height={24} />
-        <View style={styles.optionTextContainer}>
-          <Text style={[styles.optionTitle, { color: theme.text }]}>
-            Texto Codificado
-          </Text>
-          <Text style={[styles.optionDescription, { color: theme.placeholder }]}>
-            Colar dados de backup recebidos por mensagem
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderTextInputStep = () => (
-    <>
-      <Text style={[styles.modalTitle, { color: theme.text }]}>Colar Dados</Text>
-      <Text style={[styles.modalSubtitle, { color: theme.placeholder }]}>
-        Cole aqui os dados de backup que você recebeu
-      </Text>
-
-      <TextInput
-        style={[
-          styles.textInput, 
-          { 
-            backgroundColor: theme.background, 
-            color: theme.text, 
-            borderColor: theme.border 
-          }
-        ]}
-        multiline
-        placeholder="Cole os dados de backup aqui..."
-        placeholderTextColor={theme.placeholder}
-        value={textInput}
-        onChangeText={setTextInput}
-        editable={!isLoading}
-      />
-
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.secondaryButton, { backgroundColor: theme.border }]}
-          onPress={() => setCurrentStep('select')}
-          disabled={isLoading}
-        >
-          <Text style={[styles.secondaryButtonText, { color: theme.text }]}>
-            Voltar
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.primaryButton, { backgroundColor: theme.primary }]}
-          onPress={handleTextImportSubmit}
-          disabled={isLoading || !textInput.trim()}
-        >
-          <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>
-            Importar
-          </Text>
-        </TouchableOpacity>
-      </View>
     </>
   );
 
   const renderScannerStep = () => (
     <View style={styles.scannerContainer}>
-      <Text style={[styles.modalTitle, { color: theme.text, marginBottom: 16 }]}>Escanear QR Code</Text>
+      <Text style={[styles.modalTitle, { color: theme.text }]}>Escanear QR Code</Text>
       <View style={styles.cameraWrapper}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
-          onBarcodeScanned={handleBarcodeScanned}
           barcodeScannerSettings={{
-            barcodeTypes: ["qr"],
+            barcodeTypes: ["qr"]
           }}
+          onBarcodeScanned={isScanned ? undefined : handleBarcodeScanned}
         />
       </View>
       <TouchableOpacity
-        style={[styles.scannerBackButton, { backgroundColor: theme.border }]}
+        style={[styles.scannerBackButton, { backgroundColor: theme.primary }]}
         onPress={() => setCurrentStep('select')}
       >
-        <Text style={[styles.primaryButtonText, { color: theme.primaryText }]}>Voltar</Text>
+        <Text style={[styles.primaryButtonText, { color: '#fff' }]}>Voltar</Text>
       </TouchableOpacity>
     </View>
   );
@@ -282,7 +210,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
               ) : (
                 <>
                   {currentStep === 'select' && renderSelectStep()}
-                  {currentStep === 'text-input' && renderTextInputStep()}
                   {currentStep === 'qr-scanner' && renderScannerStep()}
                 </>
               )}
@@ -305,9 +232,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 20,
   },
   modalView: {
     width: '90%',
@@ -346,39 +274,13 @@ const styles = StyleSheet.create({
   optionDescription: {
     fontSize: 13,
   },
-  textInput: {
-    minHeight: 120,
-    maxHeight: 200,
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 20,
-    textAlignVertical: 'top',
-    fontSize: 14,
-    fontFamily: 'monospace',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  primaryButton: {
-    flex: 2,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  secondaryButton: {
+  loadingContainer: {
     flex: 1,
-    borderRadius: 8,
-    paddingVertical: 12,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  primaryButtonText: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  secondaryButtonText: {
-    fontWeight: '600',
+  loadingText: {
+    marginTop: 12,
     fontSize: 16,
   },
   cancelButton: {
@@ -390,31 +292,28 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-  },
   scannerContainer: {
     width: '100%',
-    alignItems: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 16,
   },
   cameraWrapper: {
     width: '100%',
     aspectRatio: 1,
-    borderRadius: 12,
     overflow: 'hidden',
+    borderRadius: 8,
     backgroundColor: '#000',
   },
   scannerBackButton: {
     width: '100%',
-    padding: 14,
-    borderRadius: 8,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 16,
+    borderRadius: 8,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

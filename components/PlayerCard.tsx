@@ -1,14 +1,24 @@
-// components/PlayerCard.tsx (Corrected Version)
-
-import Checkbox from 'expo-checkbox';
-import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import UserIcon from '../assets/icons/user.svg';
-import useTheme from '../hooks/useTheme';
-import { Match, Player } from '../types';
-import { calculatePlayerStats, getCurrentWinStreak } from '../utils/helpers';
+
+// External Dependencies
+import Checkbox from 'expo-checkbox';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// Icons
 import FireIcon from '../assets/icons/fire.svg';
+import UserIcon from '../assets/icons/user.svg';
+
+// Hooks
+import useTheme from '../hooks/useTheme';
+
+// Types
+import { Match, Player } from '../types';
+
+// Utils
+import { calculatePlayerStats, getCurrentWinStreak } from '../utils/helpers';
+
+// Components
 import PlayerAvatar from './PlayerAvatar';
 
 interface PlayerCardProps {
@@ -21,6 +31,7 @@ interface PlayerCardProps {
   isSelected?: boolean;
   onSelect?: (playerId: string) => void;
   matchHistory: Match[];
+  hideCheckbox?: boolean;
 }
 
 const PlayerCard: React.FC<PlayerCardProps> = ({
@@ -33,6 +44,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   isSelected,
   onSelect,
   matchHistory,
+  hideCheckbox = false,
 }) => {
   const theme = useTheme(darkMode);
 
@@ -135,7 +147,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
         </View>
 
-        {selectable && (
+        {selectable && !hideCheckbox && (
           <View style={styles.checkboxContainer}>
             <Checkbox
               style={styles.checkbox}

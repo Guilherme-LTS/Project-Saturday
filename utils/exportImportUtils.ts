@@ -11,6 +11,14 @@ export interface AppData {
   players: Player[];
   selectedPlayerIds: string[];
   matchHistory: Match[];
+  images?: { [key: string]: string }; // Base64 encoded image data
+}
+
+export interface SinglePlayerData {
+  version: string;
+  exportDate: string;
+  player: Player;
+  image?: string; // Base64 encoded image data
 }
 
 // Export Methods
@@ -45,66 +53,58 @@ export const exportAsJSON = async (data: AppData): Promise<boolean> => {
   }
 };
 
-export const exportAsQRCode = async (data: AppData): Promise<string | null> => {
+export const exportPlayerAsQRCode = async (player: Player): Promise<string | null> => {
   try {
-    // Compress data for QR code
-    const compressedData = {
-      v: data.version,
-      d: data.exportDate,
-      p: data.players.map(p => ({
-        i: p.id,
-        n: p.name,
-        a: p.active,
-        w: p.weight,
-        ...(p.photoUri && { u: p.photoUri })
-      })),
-      s: data.selectedPlayerIds,
-      m: data.matchHistory.slice(0, 10) // Limit matches for QR code size
+    console.log('Starting QR code export for player:', player.name);
+    let imageData: string | undefined;
+    
+    if (player.photoUri) {
+      try {
+        console.log('Attempting to read player image:', player.photoUri);
+        imageData = await FileSystem.readAsStringAsync(player.photoUri, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        console.log('Successfully read image data');
+      } catch (error) {
+        console.error(`Failed to read image for player ${player.name}:`, error);
+        imageData = undefined; // Ensure it's undefined if reading fails
+      }
+    }
+
+    // First try with image
+    let singlePlayerData: SinglePlayerData = {
+      version: '1.0.0',
+      exportDate: new Date().toISOString(),
+      player: {
+        ...player,
+        photoUri: undefined // We'll handle the photo separately
+      },
+      image: imageData
     };
 
-    const jsonString = JSON.stringify(compressedData);
+    let jsonString = JSON.stringify(singlePlayerData);
+    console.log('QR data size with image:', jsonString.length, 'bytes');
     
-    // Check if data is too large for QR code (limit ~2000 characters)
+    // If data is too large, try without image
     if (jsonString.length > 2000) {
-      Alert.alert(
-        'Dados muito grandes',
-        'Os dados são muito grandes para QR Code. Use exportação por arquivo ou texto.'
-      );
-      return null;
+      console.log('Data too large, removing image');
+      singlePlayerData.image = undefined;
+      jsonString = JSON.stringify(singlePlayerData);
+      console.log('QR data size without image:', jsonString.length, 'bytes');
+      
+      // Only show alert if we had to remove an image
+      if (imageData) {
+        Alert.alert(
+          'Imagem Removida',
+          'A foto foi removida do QR Code pois era muito grande. Os outros dados do jogador serão exportados normalmente.'
+        );
+      }
     }
 
     return jsonString;
   } catch (error) {
     console.error('Error preparing QR code data:', error);
     Alert.alert('Erro', 'Falha ao preparar dados para QR Code');
-    return null;
-  }
-};
-
-export const exportAsText = async (data: AppData): Promise<string | null> => {
-  try {
-    const compressed = JSON.stringify(data);
-    const base64Data = btoa(compressed); // Base64 encode
-    
-    const textToShare = `VOLLEYBALL_BACKUP_V1:${base64Data}`;
-    
-    const isAvailable = await Sharing.isAvailableAsync();
-    if (isAvailable) {
-      // Create temporary file for sharing
-      const fileName = `volleyball-backup-${new Date().toISOString().split('T')[0]}.txt`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
-      
-      await FileSystem.writeAsStringAsync(fileUri, textToShare);
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/plain',
-        dialogTitle: 'Compartilhar backup (texto)',
-      });
-    }
-    
-    return textToShare;
-  } catch (error) {
-    console.error('Error exporting as text:', error);
-    Alert.alert('Erro', 'Falha ao exportar como texto');
     return null;
   }
 };
@@ -125,7 +125,7 @@ export const importFromJSON = async (): Promise<AppData | null> => {
     const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
     const data = JSON.parse(fileContent) as AppData;
     
-    return validateImportedData(data);
+    return await validateImportedData(data);
   } catch (error) {
     console.error('Error importing JSON:', error);
     Alert.alert('Erro', 'Arquivo JSON inválido ou corrompido');
@@ -133,26 +133,29 @@ export const importFromJSON = async (): Promise<AppData | null> => {
   }
 };
 
-export const importFromQRCode = (qrData: string): AppData | null => {
+export const importPlayerFromQRCode = async (qrData: string): Promise<Player | null> => {
   try {
-    const parsedData = JSON.parse(qrData);
+    const parsedData = JSON.parse(qrData) as SinglePlayerData;
     
-    // Expand compressed QR data back to full format
-    const fullData: AppData = {
-      version: parsedData.v || '1.0.0',
-      exportDate: parsedData.d || new Date().toISOString(),
-      players: parsedData.p?.map((p: any) => ({
-        id: p.i,
-        name: p.n,
-        active: p.a,
-        weight: p.w,
-        ...(p.u && { photoUri: p.u })
-      })) || [],
-      selectedPlayerIds: parsedData.s || [],
-      matchHistory: parsedData.m || []
-    };
+    if (!parsedData.player || !parsedData.player.id || !parsedData.player.name) {
+      throw new Error('Dados do jogador inválidos');
+    }
 
-    return validateImportedData(fullData);
+    // If there's an image, save it
+    if (parsedData.image) {
+      try {
+        const newPhotoUri = `${FileSystem.documentDirectory}avatars/${parsedData.player.id}.jpg`;
+        await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}avatars/`, { intermediates: true });
+        await FileSystem.writeAsStringAsync(newPhotoUri, parsedData.image, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        parsedData.player.photoUri = newPhotoUri;
+      } catch (error) {
+        console.error(`Failed to save image for player ${parsedData.player.name}:`, error);
+      }
+    }
+
+    return parsedData.player;
   } catch (error) {
     console.error('Error importing QR code:', error);
     Alert.alert('Erro', 'QR Code inválido ou corrompido');
@@ -160,28 +163,11 @@ export const importFromQRCode = (qrData: string): AppData | null => {
   }
 };
 
-export const importFromText = (textData: string): AppData | null => {
-  try {
-    if (!textData.startsWith('VOLLEYBALL_BACKUP_V1:')) {
-      Alert.alert('Erro', 'Formato de backup inválido');
-      return null;
-    }
 
-    const base64Data = textData.replace('VOLLEYBALL_BACKUP_V1:', '');
-    const jsonString = atob(base64Data); // Base64 decode
-    const data = JSON.parse(jsonString) as AppData;
-    
-    return validateImportedData(data);
-  } catch (error) {
-    console.error('Error importing text:', error);
-    Alert.alert('Erro', 'Dados de texto inválidos ou corrompidos');
-    return null;
-  }
-};
 
 // Helper Functions
 
-const validateImportedData = (data: any): AppData | null => {
+const validateImportedData = async (data: any): Promise<AppData | null> => {
   try {
     // Basic validation
     if (!data || typeof data !== 'object') {
@@ -213,12 +199,32 @@ const validateImportedData = (data: any): AppData | null => {
       data.matchHistory = [];
     }
 
+    // If there are images, save them to the file system
+    if (data.images) {
+      for (const player of data.players) {
+        if (player.photoUri && data.images[player.photoUri]) {
+          try {
+            const newPhotoUri = `${FileSystem.documentDirectory}avatars/${player.id}.jpg`;
+            await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}avatars/`, { intermediates: true });
+            await FileSystem.writeAsStringAsync(newPhotoUri, data.images[player.photoUri], {
+              encoding: FileSystem.EncodingType.Base64
+            });
+            player.photoUri = newPhotoUri;
+          } catch (error) {
+            console.error(`Failed to save image for player ${player.name}:`, error);
+            player.photoUri = undefined;
+          }
+        }
+      }
+    }
+
     return {
       version: data.version || '1.0.0',
       exportDate: data.exportDate || new Date().toISOString(),
       players: data.players,
       selectedPlayerIds: data.selectedPlayerIds,
-      matchHistory: data.matchHistory
+      matchHistory: data.matchHistory,
+      images: data.images
     };
   } catch (error) {
     Alert.alert('Erro de Validação', error instanceof Error ? error.message : 'Dados corrompidos');
@@ -226,16 +232,32 @@ const validateImportedData = (data: any): AppData | null => {
   }
 };
 
-export const generateAppData = (
+export const generateAppData = async (
   players: Player[], 
   selectedPlayerIds: Set<string>, 
   matchHistory: Match[]
-): AppData => {
+): Promise<AppData> => {
+  // Collect all images
+  const images: { [key: string]: string } = {};
+  for (const player of players) {
+    if (player.photoUri) {
+      try {
+        const imageBase64 = await FileSystem.readAsStringAsync(player.photoUri, {
+          encoding: FileSystem.EncodingType.Base64
+        });
+        images[player.photoUri] = imageBase64;
+      } catch (error) {
+        console.error(`Failed to read image for player ${player.name}:`, error);
+      }
+    }
+  }
+
   return {
     version: '1.0.0',
     exportDate: new Date().toISOString(),
     players,
     selectedPlayerIds: Array.from(selectedPlayerIds),
-    matchHistory
+    matchHistory,
+    images
   };
 };

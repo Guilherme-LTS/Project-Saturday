@@ -1,4 +1,3 @@
-// components/ExportModal.tsx
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -10,21 +9,31 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
+
+// External Dependencies
 import QRCode from 'react-native-qrcode-svg';
+
+// Icons
+import FileIcon from '../assets/icons/file.svg';
+import QRCodeIcon from '../assets/icons/qr-code.svg';
+
+// Hooks
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
+
+// Types
+import { Player } from '../types';
+
+// Utils
 import {
   exportAsJSON,
-  exportAsQRCode,
-  exportAsText,
+  exportPlayerAsQRCode,
   generateAppData
 } from '../utils/exportImportUtils';
 
-// Import icons
-import FileIcon from '../assets/icons/file.svg';
-import QRCodeIcon from '../assets/icons/qr-code.svg';
-import ShareIcon from '../assets/icons/share.svg';
+// Components
+import PlayerSelectForQRModal from './PlayerSelectForQRModal';
 
 interface ExportModalProps {
   visible: boolean;
@@ -38,11 +47,12 @@ const ExportModal: React.FC<ExportModalProps> = ({ visible, onClose, darkMode })
   const { matchHistory } = useGameStore();
   const [isLoading, setIsLoading] = useState(false);
   const [qrData, setQrData] = useState<string | null>(null);
+  const [showPlayerSelect, setShowPlayerSelect] = useState(false);
 
   const handleExportJSON = async () => {
     setIsLoading(true);
     try {
-      const appData = generateAppData(allPlayers, selectedPlayerIds, matchHistory);
+      const appData = await generateAppData(allPlayers, selectedPlayerIds, matchHistory);
       const success = await exportAsJSON(appData);
       if (success) {
         Alert.alert('Sucesso', 'Dados exportados como arquivo JSON');
@@ -55,32 +65,39 @@ const ExportModal: React.FC<ExportModalProps> = ({ visible, onClose, darkMode })
     }
   };
 
-  const handleExportQR = async () => {
-    setIsLoading(true);
-    try {
-      const appData = generateAppData(allPlayers, selectedPlayerIds, matchHistory);
-      const qrString = await exportAsQRCode(appData);
-      if (qrString) {
-        setQrData(qrString);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao gerar QR Code');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleExportQR = () => {
+    console.log('DEBUG - Opening player select modal');
+    setShowPlayerSelect(true);
   };
 
-  const handleExportText = async () => {
-    setIsLoading(true);
+  const handlePlayerSelect = async (player: Player) => {
     try {
-      const appData = generateAppData(allPlayers, selectedPlayerIds, matchHistory);
-      const textData = await exportAsText(appData);
-      if (textData) {
-        Alert.alert('Sucesso', 'Dados exportados como texto');
-        onClose();
+      console.log('DEBUG - handlePlayerSelect called with player:', player);
+      console.log('DEBUG - Current state:', { showPlayerSelect, isLoading, qrData });
+      
+      if (!player || !player.id) {
+        console.error('DEBUG - Invalid player object:', player);
+        Alert.alert('Erro', 'Jogador inválido selecionado');
+        return;
+      }
+
+      setShowPlayerSelect(false);
+      setIsLoading(true);
+      
+      console.log('DEBUG - Generating QR code for player:', player.name);
+      const qrString = await exportPlayerAsQRCode(player);
+      console.log('DEBUG - QR string generated:', qrString ? 'success' : 'failed');
+      
+      if (qrString) {
+        setQrData(qrString);
+      } else {
+        // If qrString is null, the export failed silently
+        console.error('DEBUG - QR string generation returned null');
+        Alert.alert('Erro', 'Não foi possível gerar o QR Code. Tente exportar como JSON.');
       }
     } catch (error) {
-      Alert.alert('Erro', 'Falha ao exportar como texto');
+      console.error('DEBUG - Error in handlePlayerSelect:', error);
+      Alert.alert('Erro', 'Falha ao gerar QR Code');
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +143,8 @@ const ExportModal: React.FC<ExportModalProps> = ({ visible, onClose, darkMode })
   }
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+    <React.Fragment>
+      <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
@@ -175,21 +193,6 @@ const ExportModal: React.FC<ExportModalProps> = ({ visible, onClose, darkMode })
                     </View>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[styles.optionButton, { backgroundColor: theme.background }]}
-                    onPress={handleExportText}
-                  >
-                    <ShareIcon stroke={theme.primary} width={24} height={24} />
-                    <View style={styles.optionTextContainer}>
-                      <Text style={[styles.optionTitle, { color: theme.text }]}>
-                        Texto Codificado
-                      </Text>
-                      <Text style={[styles.optionDescription, { color: theme.placeholder }]}>
-                        Copiar e colar em mensagens
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-
                   <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
                     <Text style={[styles.cancelButtonText, { color: theme.placeholder }]}>
                       Cancelar
@@ -202,6 +205,15 @@ const ExportModal: React.FC<ExportModalProps> = ({ visible, onClose, darkMode })
         </View>
       </TouchableWithoutFeedback>
     </Modal>
+    
+    <PlayerSelectForQRModal
+      visible={showPlayerSelect}
+      onClose={() => setShowPlayerSelect(false)}
+      darkMode={darkMode}
+      players={allPlayers}
+      onSelectPlayer={handlePlayerSelect}
+    />
+    </React.Fragment>
   );
 };
 
