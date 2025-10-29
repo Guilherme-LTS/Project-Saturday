@@ -1,36 +1,69 @@
-# Aplicativo para guardar jogadores e separar em times
+# Gerenciador de Vôlei de Sábado
 
-## Futuras novidades
+Um aplicativo móvel desenvolvido em React Native com Expo para gerenciar partidas e times de vôlei.
 
-⦁	poder pesquisar por taxa de vitoria e nível
+## Funcionalidades
 
-~~⦁	Olho na parte shuffle para mostrar fotos ao inves de nomes~~
+- **Gerenciamento de Jogadores**
+  - Adicionar, editar e excluir jogadores
+  - Acompanhar estatísticas e desempenho
+  - Importar/Exportar dados via QR code ou JSON
+  - Avatares e personalização de jogadores
 
-~~⦁	Adicionar um feedback no slider e popup de player~~
+- **Formação de Times**
+  - Balanceamento automático baseado em:
+    - Nível de habilidade
+    - Taxa de vitórias
+    - Habilidades fundamentais
+  - Posicionamento visual na quadra
+  - Nomeação de times
 
-~~⦁	Ao invés de levar em consideração peso/nível levar em consideração taxa de vitória~~
+- **Gerenciamento de Partidas**
+  - Acompanhamento de placar em tempo real
+  - Seleção de vencedor
+  - Histórico de partidas
+  - Rotação automática de jogadores
+  - Estatísticas de desempenho
 
-~~⦁	Tirar do time com base no num de pessoas que estao desabilitadas, não pode tirar o que acabou de entrar~~
+- **Interface**
+  - Suporte a tema claro/escuro
+  - Feedback tátil
+  - Controles de placar intuitivos
+  - Interface limpa e moderna
 
-~~⦁	Editar nomes~~
+## Tecnologias Utilizadas
 
-~~⦁	Placar de jogo / histórico~~
+- React Native
+- Expo
+- TypeScript
+- React Navigation
+- Zustand (Gerenciamento de Estado)
+- AsyncStorage
+- Expo Haptics
+- React Native SVG
+- Expo Camera (QR Code)
 
-~~⦁	Aumentar o slider para ser possivel times de ate 11 (futebol)~~
+## Instalação
 
-~~⦁	Mandar o botão de importar nomes para a aba de players e achar algum jeito de botar a caixa de texto de importar lista de nomes para la~~
+1. Clone o repositório
+```bash
+git clone https://github.com/seuusuario/saturday-volleyball.git
+```
 
-~~⦁	Na aba list popup de mais informacoes, taxa de vitoria e foto por enquanto~~
+2. Instale as dependências
+```bash
+cd saturday-volleyball
+npm install
+```
 
-  ~~⦁	Consertar a parte de foto (so atualiza quando fecha e abre o app)~~
+3. Inicie o servidor de desenvolvimento
+```bash
+npx expo start
+```
 
-~~⦁	Modificar o x de jogadores para desabilitar eles no dia e adicionar no lugar um + para habilitar todos os jogadores da lista de desabilitados~~
+## Compilação
 
-~~⦁	Poder pesquisar nome com ou sem acento~~
-
-~~⦁	Trocar peso total na aba draw por nível médio~~
-
-~~⦁ X na aba de configurações para excluir todos os jogadores~~
-
-[Formatação](https://docs.github.com/pt/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax)
->>>>>>> b1b08eaff5c40d915b8070e196a14ad296a09665
+Para gerar o APK Android:
+```bash
+eas build -p android
+```
