@@ -2,7 +2,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { Match, Player } from '../types';
 
 export interface AppData {
@@ -122,7 +122,19 @@ export const importFromJSON = async (): Promise<AppData | null> => {
       return null;
     }
 
-    const fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+    let fileContent: string;
+    if (Platform.OS === 'web') {
+      const asset = result.assets[0] as any;
+      if (asset.file) {
+        fileContent = await asset.file.text();
+      } else {
+        const response = await fetch(result.assets[0].uri);
+        fileContent = await response.text();
+      }
+    } else {
+      fileContent = await FileSystem.readAsStringAsync(result.assets[0].uri);
+    }
+    
     const data = JSON.parse(fileContent) as AppData;
     
     return await validateImportedData(data);
@@ -154,12 +166,16 @@ export const importPlayerFromQRCode = async (qrData: string): Promise<Player | n
     // If there's an image, save it
     if (parsedData.image) {
       try {
-        const newPhotoUri = `${(FileSystem as any).documentDirectory}avatars/${parsedData.player.id}.jpg`;
-        await FileSystem.makeDirectoryAsync(`${(FileSystem as any).documentDirectory}avatars/`, { intermediates: true });
-        await FileSystem.writeAsStringAsync(newPhotoUri, parsedData.image, {
-          encoding: FileSystem.EncodingType.Base64
-        });
-        parsedData.player.photoUri = newPhotoUri;
+        if (Platform.OS === 'web') {
+          parsedData.player.photoUri = 'data:image/jpeg;base64,' + parsedData.image;
+        } else {
+          const newPhotoUri = `${(FileSystem as any).documentDirectory}avatars/${parsedData.player.id}.jpg`;
+          await FileSystem.makeDirectoryAsync(`${(FileSystem as any).documentDirectory}avatars/`, { intermediates: true });
+          await FileSystem.writeAsStringAsync(newPhotoUri, parsedData.image, {
+            encoding: FileSystem.EncodingType.Base64
+          });
+          parsedData.player.photoUri = newPhotoUri;
+        }
       } catch (error) {
         console.error(`Failed to save image for player ${parsedData.player.name}:`, error);
       }
@@ -214,12 +230,17 @@ const validateImportedData = async (data: any): Promise<AppData | null> => {
       for (const player of data.players) {
         if (player.photoUri && data.images[player.photoUri]) {
           try {
-            const newPhotoUri = `${(FileSystem as any).documentDirectory}avatars/${player.id}.jpg`;
-            await FileSystem.makeDirectoryAsync(`${(FileSystem as any).documentDirectory}avatars/`, { intermediates: true });
-            await FileSystem.writeAsStringAsync(newPhotoUri, data.images[player.photoUri], {
-              encoding: FileSystem.EncodingType.Base64
-            });
-            player.photoUri = newPhotoUri;
+            if (Platform.OS === 'web') {
+              const rawImg = data.images[player.photoUri];
+              player.photoUri = rawImg.startsWith('data:') ? rawImg : `data:image/jpeg;base64,${rawImg}`;
+            } else {
+              const newPhotoUri = `${(FileSystem as any).documentDirectory}avatars/${player.id}.jpg`;
+              await FileSystem.makeDirectoryAsync(`${(FileSystem as any).documentDirectory}avatars/`, { intermediates: true });
+              await FileSystem.writeAsStringAsync(newPhotoUri, data.images[player.photoUri], {
+                encoding: FileSystem.EncodingType.Base64
+              });
+              player.photoUri = newPhotoUri;
+            }
           } catch (error) {
             console.error(`Failed to save image for player ${player.name}:`, error);
             player.photoUri = undefined;

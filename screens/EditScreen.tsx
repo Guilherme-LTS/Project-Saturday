@@ -110,8 +110,8 @@ export default function EditScreen() {
             }}
             scrollEventThrottle={16}
           />
-          <LinearGradient colors={[theme.background, `${theme.background}00`]} style={styles.topFadeEffect} pointerEvents="none" />
-          {fadeHeight > 0 && <LinearGradient colors={[`${theme.background}00`, theme.background]} style={[styles.fadeEffect, { height: fadeHeight }]} pointerEvents="none" />}
+          <LinearGradient colors={[theme.background, `${theme.background}00`]} style={[styles.topFadeEffect, { pointerEvents: 'none' as const }]} />
+          {fadeHeight > 0 && <LinearGradient colors={[`${theme.background}00`, theme.background]} style={[styles.fadeEffect, { height: fadeHeight, pointerEvents: 'none' as const }]} />}
         </View>
       )}
       <View style={styles.editFooter}>
