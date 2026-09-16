@@ -94,6 +94,7 @@ interface GameState {
   endMatchAndSubstitute: (scores: [number, number]) => void;
   deleteMatch: (matchId: string) => void;
   deleteMatchesByDate: (dateTitle: string) => void;
+  swapPlayers: (teamAIndex: number, playerAId: string, teamBIndex: number, playerBId: string) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -370,6 +371,53 @@ export const useGameStore = create<GameState>()(
           teams: [],
           winnerIndex: null,
         });
+    },
+
+    swapPlayers: (teamAIndex, playerAId, teamBIndex, playerBId) => {
+      set((state) => {
+        if (teamAIndex === teamBIndex && playerAId === playerBId) return state;
+
+        const newTeams = state.teams.map(team => ({
+          ...team,
+          players: [...team.players]
+        }));
+
+        const teamA = newTeams[teamAIndex];
+        const teamB = newTeams[teamBIndex];
+
+        if (!teamA || !teamB) return state;
+
+        const playerAIndex = teamA.players.findIndex(p => p.id === playerAId);
+        const playerBIndex = teamB.players.findIndex(p => p.id === playerBId);
+
+        if (playerAIndex === -1 || playerBIndex === -1) return state;
+
+        const playerA = teamA.players[playerAIndex];
+        const playerB = teamB.players[playerBIndex];
+
+        // Swap
+        teamA.players[playerAIndex] = playerB;
+        teamB.players[playerBIndex] = playerA;
+
+        // Recalculate
+        const updateTeamStats = (team: Team) => {
+          const fundamentals = calculateTeamFundamentals(team.players);
+          const total = state.displayedBalanceMode === 'winrate'
+            ? team.players.reduce((sum, p) => sum + (calculatePlayerStats(p.id, state.matchHistory).winRate ?? 50), 0)
+            : state.displayedBalanceMode === 'level'
+              ? team.players.reduce((sum, p) => sum + p.weight, 0)
+              : Object.values(fundamentals).reduce((sum, val) => sum + val, 0);
+          
+          return { ...team, fundamentals, total };
+        };
+
+        newTeams[teamAIndex] = updateTeamStats(teamA);
+        if (teamAIndex !== teamBIndex) {
+          newTeams[teamBIndex] = updateTeamStats(teamB);
+        }
+
+        return { teams: newTeams };
+      });
     },
   }))
 );

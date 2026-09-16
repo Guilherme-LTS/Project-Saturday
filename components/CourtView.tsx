@@ -2,11 +2,14 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import FireIcon from '../assets/icons/fire.svg';
 import useTheme from '../hooks/useTheme';
 import { Match, Team } from '../types';
 import { getCurrentWinStreak } from '../utils/helpers';
 import PlayerAvatar from './PlayerAvatar';
+import DraggablePlayer from './DraggablePlayer';
 
 interface CourtViewProps {
   teams: Team[];
@@ -71,14 +74,34 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
     }
   }, [winnerIndex, team1BorderOpacity, team2BorderOpacity]);
 
+  const tapTeam1 = Gesture.Tap().onEnd(() => runOnJS(onSelectWinner)(0));
+  const tapTeam2 = Gesture.Tap().onEnd(() => runOnJS(onSelectWinner)(1));
+
   return (
     <View style={[styles.courtContainer, { backgroundColor: '#0873a7' }]}>
+      {/* Background touch areas covering the entire top and bottom halves (including blue margins) */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <GestureDetector gesture={tapTeam1}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '50%' }} />
+        </GestureDetector>
+        <GestureDetector gesture={tapTeam2}>
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50%' }} />
+        </GestureDetector>
+      </View>
+
       <View style={styles.playingSurface}>
-        <View style={styles.teamHalf}>
-          {team1.map(player => {
+        <GestureDetector gesture={tapTeam1}>
+          <View style={styles.teamHalf}>
+            {team1.map(player => {
             const streak = getCurrentWinStreak(player.id, matchHistory);
             return (
-              <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
+              <DraggablePlayer 
+                key={player.id} 
+                teamIndex={0} 
+                playerId={player.id} 
+                style={[styles.playerContainer, playerContainerStyle]}
+                onTap={() => onSelectWinner(0)}
+              >
                 <View style={{ position: 'relative' }}>
                   {streak >= 3 && (
                     <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
@@ -88,15 +111,23 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
                   <PlayerAvatar player={player} size={avatarSize} theme={theme} />
                 </View>
                 <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
-              </View>
+              </DraggablePlayer>
             );
           })}
-        </View>
-        <View style={styles.teamHalf}>
-          {team2.map(player => {
+          </View>
+        </GestureDetector>
+        <GestureDetector gesture={tapTeam2}>
+          <View style={styles.teamHalf}>
+            {team2.map(player => {
             const streak = getCurrentWinStreak(player.id, matchHistory);
             return (
-              <View key={player.id} style={[styles.playerContainer, playerContainerStyle]}>
+              <DraggablePlayer 
+                key={player.id} 
+                teamIndex={1} 
+                playerId={player.id} 
+                style={[styles.playerContainer, playerContainerStyle]}
+                onTap={() => onSelectWinner(1)}
+              >
                 <View style={{ position: 'relative' }}>
                   {streak >= 3 && (
                     <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
@@ -106,20 +137,22 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
                   <PlayerAvatar player={player} size={avatarSize} theme={theme} />
                 </View>
                 <Text numberOfLines={1} style={styles.playerName}>{player.name}</Text>
-              </View>
+              </DraggablePlayer>
             );
           })}
-        </View>
+          </View>
+        </GestureDetector>
       </View>
 
-      <View style={styles.divider} />
+      <View style={styles.divider} pointerEvents="none" />
       <Image
         source={require('../assets/images/net.png')}
         style={styles.netImage}
         resizeMode="stretch"
+        pointerEvents="none"
       />
 
-      <View style={styles.overlayContainer}>
+      <View style={styles.overlayContainer} pointerEvents="none">
         <Animated.View
           style={[
             styles.clickArea,
@@ -133,9 +166,7 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
               opacity: team1BorderOpacity,
             },
           ]}
-        >
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => onSelectWinner(0)} />
-        </Animated.View>
+        />
 
         <Animated.View
           style={[
@@ -150,9 +181,7 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
               opacity: team2BorderOpacity,
             },
           ]}
-        >
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => onSelectWinner(1)} />
-        </Animated.View>
+        />
       </View>
     </View>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { TouchableOpacity } from 'react-native-gesture-handler';
 
 import useTheme from '../hooks/useTheme';
 import { Match, Team } from '../types';
@@ -8,6 +9,7 @@ import PlayerAvatar from './PlayerAvatar';
 import FireIcon from '../assets/icons/fire.svg';
 import { getCurrentWinStreak } from '../utils/helpers';
 import { useGameStore } from '../stores/gameStore';
+import DraggablePlayer from './DraggablePlayer';
 
 interface TeamCardProps {
   team: Team;
@@ -101,7 +103,13 @@ const TeamCard: React.FC<TeamCardProps> = ({
 
       <View style={styles.playerGrid}>
         {team.players.map(player => (
-          <View key={player.id} style={styles.playerCell}>
+          <DraggablePlayer 
+            key={player.id} 
+            teamIndex={teamNumber - 1} 
+            playerId={player.id} 
+            style={styles.playerCell}
+            onTap={onSelectWinner}
+          >
             <View style={{ position: 'relative' }}>
               {getCurrentWinStreak(player.id, matchHistory || []) >= 3 && (
                 <View style={[styles.streakBadge, { top: -Math.round(fireSize/3), right: -Math.round(fireSize/3) }]}>
@@ -113,7 +121,7 @@ const TeamCard: React.FC<TeamCardProps> = ({
             <Text style={[styles.playerName, { color: theme.text }]} numberOfLines={1}>
               {player.name}
             </Text>
-          </View>
+          </DraggablePlayer>
         ))}
       </View>
 

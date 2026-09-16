@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,6 +17,9 @@ import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
 
+import { DragDropProvider } from '../contexts/DragDropContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 export default function DrawScreen() {
   const [isBalanceModalVisible, setBalanceModalVisible] = useState(false);
   const [scores, setScores] = useState<[number, number]>([0, 0]);
@@ -28,6 +31,7 @@ export default function DrawScreen() {
     teams,
     winnerIndex,
     setWinnerIndex,
+    swapPlayers,
     balanceMode,
     setBalanceMode,
     displayedBalanceMode,
@@ -133,8 +137,15 @@ export default function DrawScreen() {
     }
   };
 
+  const handleDrop = useCallback((sourceTeam: number, sourcePlayer: string, targetTeam: number, targetPlayer: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    swapPlayers(sourceTeam, sourcePlayer, targetTeam, targetPlayer);
+  }, [swapPlayers]);
+
   return (
-     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <DragDropProvider onDrop={handleDrop}>
+        <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <BalanceTypeModal
         visible={isBalanceModalVisible}
         darkMode={darkMode}
@@ -310,7 +321,9 @@ export default function DrawScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+        </View>
+      </DragDropProvider>
+    </GestureHandlerRootView>
   );
 }
 
