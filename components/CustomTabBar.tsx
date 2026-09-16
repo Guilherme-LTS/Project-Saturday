@@ -7,6 +7,7 @@ import {
   Platform,
   StyleSheet,
   TouchableNativeFeedback,
+  TouchableOpacity,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -181,16 +182,16 @@ export default function CustomTabBar({ state, descriptors, navigation }: CustomT
           );
         }
 
-        // Fallback for other platforms
+        // Fallback for other platforms (iOS, Web)
         return (
           <View key={route.key} style={styles.tabItem}>
-            <TouchableNativeFeedback onPress={onPress}>
+            <TouchableOpacity onPress={onPress} style={{ width: '100%' }}>
               <View style={styles.touchableArea}>
                 <View style={[styles.iconContainer, iconStyle]}>
                   <IconComponent stroke={iconColor} width={24} height={24} />
                 </View>
               </View>
-            </TouchableNativeFeedback>
+            </TouchableOpacity>
           </View>
         );
       })}

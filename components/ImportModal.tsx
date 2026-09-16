@@ -3,10 +3,11 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View
 } from 'react-native';
 
@@ -42,24 +43,36 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
   const [currentStep, setCurrentStep] = useState<ImportStep>('select');
   const [isScanned, setIsScanned] = useState(false);
 
+  const applyImport = (importedData: AppData) => {
+    setAllPlayers(importedData.players);
+    setSelectedPlayerIds(new Set(importedData.selectedPlayerIds));
+    importedData.matchHistory.forEach(match => {
+      addMatch(match);
+    });
+    Alert.alert('Sucesso', 'Dados importados com sucesso!');
+    handleClose();
+  };
+
   const handleImportComplete = (importedData: AppData) => {
+    const message = `Importar ${importedData.players.length} jogadores e ${importedData.matchHistory.length} partidas? Isso substituirá todos os dados atuais.`;
+    
+    // Direct browser fallback for Web to ensure immediate execution
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (window.confirm(`Confirmar Importação\n\n${message}`)) {
+        applyImport(importedData);
+      }
+      return;
+    }
+
     Alert.alert(
       'Confirmar Importação',
-      `Importar ${importedData.players.length} jogadores e ${importedData.matchHistory.length} partidas? Isso substituirá todos os dados atuais.`,
+      message,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Importar',
           style: 'destructive',
-          onPress: () => {
-            setAllPlayers(importedData.players);
-            setSelectedPlayerIds(new Set(importedData.selectedPlayerIds));
-            importedData.matchHistory.forEach(match => {
-              addMatch(match);
-            });
-            Alert.alert('Sucesso', 'Dados importados com sucesso!');
-            handleClose();
-          }
+          onPress: () => applyImport(importedData),
         }
       ]
     );
@@ -73,6 +86,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
         handleImportComplete(importedData);
       }
     } catch (error) {
+      console.error('Falha ao importar JSON:', error);
       Alert.alert('Erro', 'Falha ao importar arquivo JSON');
     } finally {
       setIsLoading(false);
@@ -178,7 +192,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
       <Text style={[styles.modalTitle, { color: theme.text }]}>Escanear QR Code</Text>
       <View style={styles.cameraWrapper}>
         <CameraView
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill as any}
           barcodeScannerSettings={{
             barcodeTypes: ["qr"]
           }}
@@ -196,35 +210,34 @@ const ImportModal: React.FC<ImportModalProps> = ({ visible, onClose, darkMode })
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={handleClose}>
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback>
-            <View style={[styles.modalView, { backgroundColor: theme.card }]}>
-              {isLoading ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={theme.primary} />
-                  <Text style={[styles.loadingText, { color: theme.placeholder }]}>
-                    Importando dados...
-                  </Text>
-                </View>
-              ) : (
-                <>
-                  {currentStep === 'select' && renderSelectStep()}
-                  {currentStep === 'qr-scanner' && renderScannerStep()}
-                </>
-              )}
-
-              {!isLoading && currentStep === 'select' && (
-                <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
-                  <Text style={[styles.cancelButtonText, { color: theme.placeholder }]}>
-                    Cancelar
-                  </Text>
-                </TouchableOpacity>
-              )}
+      <Pressable style={styles.modalOverlay} onPress={handleClose}>
+        <Pressable 
+          style={[styles.modalView, { backgroundColor: theme.card }]}
+          onPress={(e) => e.stopPropagation?.()}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={[styles.loadingText, { color: theme.placeholder }]}>
+                Importando dados...
+              </Text>
             </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
+          ) : (
+            <>
+              {currentStep === 'select' && renderSelectStep()}
+              {currentStep === 'qr-scanner' && renderScannerStep()}
+            </>
+          )}
+
+          {!isLoading && currentStep === 'select' && (
+            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
+              <Text style={[styles.cancelButtonText, { color: theme.placeholder }]}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          )}
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
