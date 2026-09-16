@@ -45,25 +45,21 @@ Um aplicativo móvel desenvolvido em React Native com Expo para gerenciar partid
 
 ## Instalação
 
-1. Clone o repositório
-```bash
-git clone https://github.com/seuusuario/saturday-volleyball.git
-```
+1. Instalar Git e Node.js
+    - Baixe e instale o Git (git-scm.com) e o Node.js versão LTS (nodejs.org).
+    - Depois de instalar, confirme no terminal com `git --version` e `node -v`.
 
-2. Instale as dependências
-```bash
-cd saturday-volleyball
-npm install
-```
+2. Clonar o repositório
+    - No terminal, rode `git clone https://github.com/fabio-a-lima/Project-Saturday.git` e depois `cd Project-Saturday` para entrar na pasta do projeto.
 
-3. Inicie o servidor de desenvolvimento
-```bash
-npx expo start
-```
+3. Instalar as dependências
+    - Dentro da pasta do projeto, rode `npm install`. Isso baixa todas as dependências (Expo, React Navigation, Zustand, etc.) listadas no package.json.
 
-## Compilação
+4. (Opcional) Instalar o EAS CLI
+    - Rode `npm install -g eas-cli` se for usar o EAS Build depois. Não é obrigatório só para rodar em modo desenvolvimento, mas é necessário se quiser gerar um APK.
 
-Para gerar o APK Android:
-```bash
-eas build -p android
-```
+5. Iniciar o servidor de desenvolvimento
+    - Com tudo instalado, rode `npx expo start`. Isso abre o Metro Bundler com um QR code no terminal.
+
+6. Testar no celular ou navegador
+    - No celular (ou emulador), instale o app Expo Go e escaneie o QR code, ou pressione `w` no terminal para abrir uma prévia no navegador. Nenhuma configuração extra de ambiente Android/iOS nativo é necessária nesse modo — só é preciso se for compilar um build nativo standalone.
