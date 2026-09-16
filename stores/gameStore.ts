@@ -20,7 +20,7 @@ const getDefaultFundamentals = (): PlayerFundamentals => ({
 });
 
 const calculateTeamFundamentals = (players: Player[]): PlayerFundamentals => {
-  const teamFundamentals: PlayerFundamentals = { serve: 1, passing: 1, setting: 1, attacking: 1, blocking: 1 };
+  const teamFundamentals: PlayerFundamentals = { serve: 0, passing: 0, setting: 0, attacking: 0, blocking: 0 };
   players.forEach(player => {
     const pFunds = player.fundamentals ?? getDefaultFundamentals();
     for (const key in pFunds) {
@@ -186,16 +186,13 @@ export const useGameStore = create<GameState>()(
         return;
       }
       
-      const numPlayersToDraw = Math.floor(activePlayers.length / teamSize) * teamSize;
-      const playersForTeams = shuffleArray(activePlayers).slice(0, numPlayersToDraw);
+      const numTeams = 2;
+      const maxCourtPlayers = teamSize * numTeams;
+      const numPlayersToDraw = Math.min(activePlayers.length, maxCourtPlayers);
+      const shuffledActive = shuffleArray(activePlayers);
+      const playersForTeams = shuffledActive.slice(0, numPlayersToDraw);
       const drawnPlayerIds = new Set(playersForTeams.map(p => p.id));
       const leftoverPlayers = sessionPlayers.filter(p => !drawnPlayerIds.has(p.id));
-      const numTeams = Math.floor(playersForTeams.length / teamSize);
-
-      if (numTeams < 2) {
-        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
-        return;
-      }
 
       let finalTeams: Team[] = [];
 
@@ -377,11 +374,15 @@ export const useGameStore = create<GameState>()(
   }))
 );
 
+let saveHistoryTimeout: ReturnType<typeof setTimeout> | null = null;
 useGameStore.subscribe(
   (state) => state.matchHistory,
   (matchHistory) => {
     if (!usePlayersStore.getState().isLoading) {
-      saveMatchHistory(matchHistory);
+      if (saveHistoryTimeout) clearTimeout(saveHistoryTimeout);
+      saveHistoryTimeout = setTimeout(() => {
+        saveMatchHistory(matchHistory);
+      }, 300);
     }
   }
 );

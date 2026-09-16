@@ -122,21 +122,29 @@ export const usePlayersStore = create<PlayersState>()(
   }))
 );
 
-// Auto-save subscriptions
+// Auto-save subscriptions with debouncing to prevent I/O thrashing during rapid updates (e.g. slider drags)
+let savePlayersTimeout: ReturnType<typeof setTimeout> | null = null;
 usePlayersStore.subscribe(
   (state) => state.allPlayers,
   (allPlayers) => {
     if (!usePlayersStore.getState().isLoading) {
-      savePlayers(allPlayers);
+      if (savePlayersTimeout) clearTimeout(savePlayersTimeout);
+      savePlayersTimeout = setTimeout(() => {
+        savePlayers(allPlayers);
+      }, 300);
     }
   }
 );
 
+let saveSelectedTimeout: ReturnType<typeof setTimeout> | null = null;
 usePlayersStore.subscribe(
   (state) => state.selectedPlayerIds,
   (selectedPlayerIds) => {
     if (!usePlayersStore.getState().isLoading) {
-      saveSelectedPlayerIds(selectedPlayerIds);
+      if (saveSelectedTimeout) clearTimeout(saveSelectedTimeout);
+      saveSelectedTimeout = setTimeout(() => {
+        saveSelectedPlayerIds(selectedPlayerIds);
+      }, 300);
     }
   }
 );

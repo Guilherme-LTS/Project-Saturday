@@ -276,8 +276,9 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   };
 
   const calculateAverage = () => {
+    const keys = Object.keys(fundamentals);
     const sum = Object.values(fundamentals).reduce((acc, val) => acc + val, 0);
-    return (sum / 5).toFixed(1);
+    return (sum / (keys.length || 1)).toFixed(1);
   };
 
   const getTitleStyle = (name: string) => {

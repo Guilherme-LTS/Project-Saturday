@@ -1,5 +1,5 @@
-import React from 'react';
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ImageBackground, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // External Dependencies
 import Checkbox from 'expo-checkbox';
@@ -56,7 +56,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     }
   };
 
-  const hasPhoto = !!player.photoUri;
+  const [imageError, setImageError] = useState(false);
+  const isWebFileUri = Platform.OS === 'web' && !!player.photoUri?.startsWith('file://');
+  const hasPhoto = !!player.photoUri && !isWebFileUri && !imageError;
   const isInactive = !player.active;
 
   const stats = calculatePlayerStats(player.id, matchHistory);
@@ -79,6 +81,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             source={{ uri: player.photoUri }}
             style={styles.gridImageBackground}
             imageStyle={[styles.gridImageStyle, isInactive && inactiveStyle]} // Applies opacity to the image
+            onError={() => setImageError(true)}
           >
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.8)']}

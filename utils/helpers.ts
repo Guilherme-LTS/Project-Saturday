@@ -31,29 +31,33 @@ export function calculatePlayerStats(playerId: string, matchHistory: Match[]): {
   return { gamesPlayed, winRate };
 }
 
-// Returns the current consecutive win streak for the given player (wins in most recent games until a loss or no game)
+// Returns the current consecutive win streak for the given player
+// Note: matchHistory is stored in descending order (index 0 is most recent)
 export function getCurrentWinStreak(playerId: string, matchHistory: Match[]): number {
   if (!playerId || !Array.isArray(matchHistory) || matchHistory.length === 0) return 0;
 
-  // Sort by date ascending to ensure order, then iterate from latest to oldest
-  const sorted = [...matchHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let streak = 0;
 
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const match = sorted[i];
+  for (let i = 0; i < matchHistory.length; i++) {
+    const match = matchHistory[i];
     let participated = false;
     let playerTeamIndex = -1;
-    match.teams.forEach((team, idx) => {
-      if (team.players.some(p => p.id === playerId)) {
+
+    for (let idx = 0; idx < match.teams.length; idx++) {
+      if (match.teams[idx].players.some(p => p.id === playerId)) {
         participated = true;
         playerTeamIndex = idx;
+        break;
       }
-    });
+    }
 
-    if (!participated) continue; // ignore matches where player didn't play
+    if (!participated) continue; // Ignore matches where player didn't play
 
-    const won = playerTeamIndex === match.winnerTeamIndex;
-    if (won) streak += 1; else break;
+    if (playerTeamIndex === match.winnerTeamIndex) {
+      streak += 1;
+    } else {
+      break; // Streak broken on first loss
+    }
   }
 
   return streak;

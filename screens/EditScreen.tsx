@@ -14,6 +14,7 @@ import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
 import { Player, PlayerFundamentals } from '../types';
+import { savePlayerAvatar } from '../utils/imageUtils';
 
 export default function EditScreen() {
   const insets = useSafeAreaInsets();
@@ -57,9 +58,10 @@ export default function EditScreen() {
     setStatsModalVisible(false);
   };
   
-  const handleChangePhoto = (player: Player, photoUri: string) => {
-    updatePlayer(player.id, { photoUri });
-    setSelectedPlayer(prev => prev ? { ...prev, photoUri } : null);
+  const handleChangePhoto = async (player: Player, photoUri: string) => {
+    const permanentUri = await savePlayerAvatar(player.id, photoUri);
+    updatePlayer(player.id, { photoUri: permanentUri });
+    setSelectedPlayer(prev => prev ? { ...prev, photoUri: permanentUri } : null);
   };
 
   const handleRemovePhoto = (playerId: string) => {

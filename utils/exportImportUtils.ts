@@ -225,10 +225,10 @@ const validateImportedData = async (data: any): Promise<AppData | null> => {
       data.matchHistory = [];
     }
 
-    // If there are images, save them to the file system
-    if (data.images) {
-      for (const player of data.players) {
-        if (player.photoUri && data.images[player.photoUri]) {
+    // Process player images
+    for (const player of data.players) {
+      if (player.photoUri) {
+        if (data.images && data.images[player.photoUri]) {
           try {
             if (Platform.OS === 'web') {
               const rawImg = data.images[player.photoUri];
@@ -245,6 +245,9 @@ const validateImportedData = async (data: any): Promise<AppData | null> => {
             console.error(`Failed to save image for player ${player.name}:`, error);
             player.photoUri = undefined;
           }
+        } else if (Platform.OS === 'web' || player.photoUri.startsWith('file:///data/user/') || player.photoUri.startsWith('file:///var/mobile/')) {
+          // Dangling or inaccessible local path from another device without embedded data
+          player.photoUri = undefined;
         }
       }
     }

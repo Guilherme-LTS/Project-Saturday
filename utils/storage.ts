@@ -41,7 +41,8 @@ export async function loadTeamDisplayNames(): Promise<[string, string]> {
   return ['Time 1', 'Time 2'];
 }
 
-const MIGRATION_KEY = '@VolleyballDraw:migratedV2';
+const MIGRATION_PLAYERS_KEY = '@VolleyballDraw:migratedPlayersV2';
+const MIGRATION_MATCHES_KEY = '@VolleyballDraw:migratedMatchesV2';
 
 export async function loadPlayers(): Promise<Player[]> {
   try {
@@ -49,7 +50,7 @@ export async function loadPlayers(): Promise<Player[]> {
     let players = jsonValue != null ? JSON.parse(jsonValue) : [];
     
     // Migration check
-    const migrated = await AsyncStorage.getItem(MIGRATION_KEY);
+    const migrated = await AsyncStorage.getItem(MIGRATION_PLAYERS_KEY);
     if (!migrated && players.length > 0) {
       players = players.map((p: any) => {
         if (p.fundamentals) {
@@ -66,8 +67,9 @@ export async function loadPlayers(): Promise<Player[]> {
         }
         return p;
       });
-      // Save migrated players
+      // Save migrated players and mark players migration as complete
       await savePlayers(players);
+      await AsyncStorage.setItem(MIGRATION_PLAYERS_KEY, 'true');
     }
     
     console.log("--- CARREGANDO JOGADORES ---", players.length, "jogadores encontrados"); // DEBUG
@@ -142,7 +144,7 @@ export async function loadMatchHistory(): Promise<Match[]> {
     const jsonValue = await AsyncStorage.getItem(HISTORY_STORAGE_KEY);
     let matches = jsonValue != null ? JSON.parse(jsonValue) : [];
     
-    const migrated = await AsyncStorage.getItem(MIGRATION_KEY);
+    const migrated = await AsyncStorage.getItem(MIGRATION_MATCHES_KEY);
     if (!migrated) {
       matches = matches.map((m: any) => {
         return {
@@ -177,8 +179,7 @@ export async function loadMatchHistory(): Promise<Match[]> {
       if (matches.length > 0) {
         await saveMatchHistory(matches);
       }
-      // Set migrated flag after both migrations are done
-      await AsyncStorage.setItem(MIGRATION_KEY, 'true');
+      await AsyncStorage.setItem(MIGRATION_MATCHES_KEY, 'true');
     }
     
     return matches;
