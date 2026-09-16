@@ -12,16 +12,35 @@ export function calculatePlayerStats(playerId: string, matchHistory: Match[]): {
 
   for (const match of matchHistory) {
     let playedInMatch = false;
+    let wonInMatch = false;
+
+    // Check if player ended the match in a team
     match.teams.forEach((team, index) => {
       if (team.players.some(p => p.id === playerId)) {
         playedInMatch = true;
         if (index === match.winnerTeamIndex) {
-          gamesWon++;
+          wonInMatch = true;
         }
       }
     });
+
+    // Check if player was substituted IN or OUT during the match
+    if (match.substitutions) {
+      match.substitutions.forEach((sub) => {
+        if (sub.playerInId === playerId || sub.playerOutId === playerId) {
+          playedInMatch = true;
+          if (sub.teamIndex === match.winnerTeamIndex) {
+            wonInMatch = true;
+          }
+        }
+      });
+    }
+
     if (playedInMatch) {
       gamesPlayed++;
+      if (wonInMatch) {
+        gamesWon++;
+      }
     }
   }
 
@@ -48,6 +67,16 @@ export function getCurrentWinStreak(playerId: string, matchHistory: Match[]): nu
         participated = true;
         playerTeamIndex = idx;
         break;
+      }
+    }
+
+    if (!participated && match.substitutions) {
+      for (const sub of match.substitutions) {
+        if (sub.playerInId === playerId || sub.playerOutId === playerId) {
+          participated = true;
+          playerTeamIndex = sub.teamIndex;
+          break;
+        }
       }
     }
 

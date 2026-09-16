@@ -15,6 +15,7 @@ import TeamCard from '../components/TeamCard';
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
+import ReservesArea from '../components/ReservesArea';
 import { useThemeStore } from '../stores/themeStore';
 
 import { DragDropProvider } from '../contexts/DragDropContext';
@@ -40,7 +41,8 @@ export default function DrawScreen() {
     drawTeams,
     endMatchAndSubstitute,
     matchHistory,
-    teamDisplayNames
+    teamDisplayNames,
+    leftoverPlayerIds
   } = useGameStore();
   const { allPlayers, selectedPlayerIds } = usePlayersStore();
   const { darkMode } = useThemeStore();
@@ -139,8 +141,9 @@ export default function DrawScreen() {
 
   const handleDrop = useCallback((sourceTeam: number, sourcePlayer: string, targetTeam: number, targetPlayer: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    swapPlayers(sourceTeam, sourcePlayer, targetTeam, targetPlayer);
-  }, [swapPlayers]);
+    const isMatchStarted = scores[0] > 0 || scores[1] > 0;
+    swapPlayers(sourceTeam, sourcePlayer, targetTeam, targetPlayer, isMatchStarted);
+  }, [swapPlayers, scores]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -162,13 +165,18 @@ export default function DrawScreen() {
             </Text>
           </View>
         ) : showCourtView ? (
-          <CourtView
-            teams={teams}
-            darkMode={darkMode}
-            winnerIndex={winnerIndex}
-            onSelectWinner={handleSelectWinner}
-            matchHistory={matchHistory}
-          />
+          <View style={{ flex: 1 }}>
+            <CourtView
+              teams={teams}
+              darkMode={darkMode}
+              winnerIndex={winnerIndex}
+              onSelectWinner={handleSelectWinner}
+              matchHistory={matchHistory}
+            />
+            {leftoverPlayerIds.length > 0 && (
+              <ReservesArea leftoverPlayerIds={leftoverPlayerIds} darkMode={darkMode} />
+            )}
+          </View>
         ) : (
           <View>
             {teams.map((t, idx) => (

@@ -263,6 +263,7 @@ export const DragDropProvider: React.FC<{
       ],
       opacity: 0.95,
       zIndex: 9998,
+      elevation: 11,
     };
   });
 
