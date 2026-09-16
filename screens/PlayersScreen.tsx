@@ -52,11 +52,11 @@ export default function PlayersScreen() {
 
     lines.forEach(line => {
       const parts = line.split(/\s+/);
-      let weight: 1 | 2 | 3 = 2;
+      let weight: Player['weight'] = 2;
       const last = parts[parts.length - 1];
 
-      if (["1", "2", "3"].includes(last)) {
-        weight = parseInt(last) as 1 | 2 | 3;
+      if (["1", "2", "3", "4", "5"].includes(last)) {
+        weight = parseInt(last) as Player['weight'];
         parts.pop();
       }
       const name = parts.join(" ");
@@ -92,7 +92,7 @@ export default function PlayersScreen() {
 
   const handleUpdateWeight = (playerToUpdate: Player) => {
     const currentWeight = playerToUpdate.weight;
-    const nextWeight = (currentWeight % 3) + 1 as 1 | 2 | 3;
+    const nextWeight = (currentWeight % 5) + 1 as Player['weight'];
     updatePlayer(playerToUpdate.id, { weight: nextWeight });
     setSelectedPlayer(prev => prev ? { ...prev, weight: nextWeight } : null);
   };

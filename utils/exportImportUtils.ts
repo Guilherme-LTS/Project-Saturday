@@ -210,7 +210,7 @@ const validateImportedData = async (data: any): Promise<AppData | null> => {
       if (!player.id || !player.name || typeof player.active !== 'boolean') {
         throw new Error(`Jogador ${index + 1} tem dados inválidos`);
       }
-      if (![1, 2, 3].includes(player.weight)) {
+      if (![1, 2, 3, 4, 5].includes(player.weight)) {
         throw new Error(`Jogador ${player.name} tem nível inválido`);
       }
     });

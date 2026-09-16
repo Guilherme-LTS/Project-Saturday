@@ -47,7 +47,7 @@ export default function EditScreen() {
 
   const handleUpdateWeight = (playerToUpdate: Player) => {
     const currentWeight = playerToUpdate.weight;
-    const nextWeight = (currentWeight % 3) + 1 as 1 | 2 | 3;
+    const nextWeight = (currentWeight % 5) + 1 as Player['weight'];
     updatePlayer(playerToUpdate.id, { weight: nextWeight });
     setSelectedPlayer(prev => prev ? { ...prev, weight: nextWeight } : null);
   };

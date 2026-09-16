@@ -137,23 +137,23 @@ const PlayerStatsModal: React.FC<PlayerStatsModalProps> = ({
   }, [player, matchHistory]);
 
   // Suggested level calculation using match history and fundamentals
-  const suggestedLevel: 1 | 2 | 3 = React.useMemo(() => {
+  const suggestedLevel: Player['weight'] = React.useMemo(() => {
     // Average fundamentals (1-10)
     const numFundamentals = Object.keys(fundamentals).length || 1; // Prevent division by zero
     const avgFund = (Object.values(fundamentals).reduce((acc, v) => acc + v, 0) / numFundamentals);
-    const levelByFund: 1 | 2 | 3 = avgFund < 5.0 ? 1 : avgFund < 7.6 ? 2 : 3;
+    const levelByFund: Player['weight'] = avgFund < 3 ? 1 : avgFund < 5 ? 2 : avgFund < 7 ? 3 : avgFund < 9 ? 4 : 5;
 
     // From win rate if available
     const { gamesPlayed, winRate } = stats;
-    let levelByWin: 1 | 2 | 3 = levelByFund;
+    let levelByWin: Player['weight'] = levelByFund;
     if (winRate !== null) {
-      levelByWin = winRate < 45 ? 1 : winRate < 60 ? 2 : 3;
+      levelByWin = winRate < 40 ? 1 : winRate < 50 ? 2 : winRate < 60 ? 3 : winRate < 70 ? 4 : 5;
     }
 
     // Confidence: use win-based suggestion when we have a bit of history
     if (gamesPlayed >= 5) return levelByWin;
     // Blend when low samples
-    const blended = Math.round((levelByWin + levelByFund) / 2) as 1 | 2 | 3;
+    const blended = Math.round((levelByWin + levelByFund) / 2) as Player['weight'];
     return blended;
   }, [fundamentals, stats.gamesPlayed, stats.winRate]);
 
