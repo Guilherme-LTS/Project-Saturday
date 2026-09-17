@@ -251,6 +251,7 @@ export const DragDropProvider: React.FC<{
       ],
       opacity: withTiming(isDragging.value || isTransitioning.current ? 0.95 : 1, { duration: 150 }),
       zIndex: 9999,
+      elevation: 12,
     };
   });
 
