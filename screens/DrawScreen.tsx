@@ -1,5 +1,5 @@
 import * as Haptics from 'expo-haptics';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,7 +15,11 @@ import TeamCard from '../components/TeamCard';
 import useTheme from '../hooks/useTheme';
 import { useGameStore } from '../stores/gameStore';
 import { usePlayersStore } from '../stores/playersStore';
+import ReservesArea from '../components/ReservesArea';
 import { useThemeStore } from '../stores/themeStore';
+
+import { DragDropProvider } from '../contexts/DragDropContext';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function DrawScreen() {
   const [isBalanceModalVisible, setBalanceModalVisible] = useState(false);
@@ -28,6 +32,7 @@ export default function DrawScreen() {
     teams,
     winnerIndex,
     setWinnerIndex,
+    swapPlayers,
     balanceMode,
     setBalanceMode,
     displayedBalanceMode,
@@ -36,7 +41,8 @@ export default function DrawScreen() {
     drawTeams,
     endMatchAndSubstitute,
     matchHistory,
-    teamDisplayNames
+    teamDisplayNames,
+    leftoverPlayerIds
   } = useGameStore();
   const { allPlayers, selectedPlayerIds } = usePlayersStore();
   const { darkMode } = useThemeStore();
@@ -133,8 +139,16 @@ export default function DrawScreen() {
     }
   };
 
+  const handleDrop = useCallback((sourceTeam: number, sourcePlayer: string, targetTeam: number, targetPlayer: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    const isMatchStarted = scores[0] > 0 || scores[1] > 0;
+    swapPlayers(sourceTeam, sourcePlayer, targetTeam, targetPlayer, isMatchStarted);
+  }, [swapPlayers, scores]);
+
   return (
-     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <DragDropProvider onDrop={handleDrop}>
+        <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: TAB_BAR_HEIGHT + insets.bottom }]}>
       <BalanceTypeModal
         visible={isBalanceModalVisible}
         darkMode={darkMode}
@@ -151,13 +165,18 @@ export default function DrawScreen() {
             </Text>
           </View>
         ) : showCourtView ? (
-          <CourtView
-            teams={teams}
-            darkMode={darkMode}
-            winnerIndex={winnerIndex}
-            onSelectWinner={handleSelectWinner}
-            matchHistory={matchHistory}
-          />
+          <View style={{ flex: 1 }}>
+            <CourtView
+              teams={teams}
+              darkMode={darkMode}
+              winnerIndex={winnerIndex}
+              onSelectWinner={handleSelectWinner}
+              matchHistory={matchHistory}
+            />
+            {leftoverPlayerIds.length > 0 && (
+              <ReservesArea leftoverPlayerIds={leftoverPlayerIds} darkMode={darkMode} />
+            )}
+          </View>
         ) : (
           <View>
             {teams.map((t, idx) => (
@@ -310,7 +329,9 @@ export default function DrawScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+        </View>
+      </DragDropProvider>
+    </GestureHandlerRootView>
   );
 }
 

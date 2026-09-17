@@ -17,6 +17,7 @@ import { usePlayersStore } from '../stores/playersStore';
 import { useThemeStore } from '../stores/themeStore';
 import { Player, PlayerFundamentals, SortMode } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
+import { savePlayerAvatar } from '../utils/imageUtils';
 
 function normalizeString(str: string): string {
   return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -105,9 +106,10 @@ export default function PlayersScreen() {
     ]);
   };
 
-  const handleChangePhoto = (player: Player, photoUri: string) => {
-    updatePlayer(player.id, { photoUri });
-    setSelectedPlayer(prev => prev ? { ...prev, photoUri } : null);
+  const handleChangePhoto = async (player: Player, photoUri: string) => {
+    const permanentUri = await savePlayerAvatar(player.id, photoUri);
+    updatePlayer(player.id, { photoUri: permanentUri });
+    setSelectedPlayer(prev => prev ? { ...prev, photoUri: permanentUri } : null);
   };
 
   const handleRemovePhoto = (playerId: string) => {

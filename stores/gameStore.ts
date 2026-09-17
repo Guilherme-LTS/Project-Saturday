@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { Match, Player, PlayerFundamentals, PlayerPairing, Team, TeamSize } from '../types';
+import { Match, Player, PlayerFundamentals, PlayerPairing, Team, TeamSize, MatchSubstitution } from '../types';
 import { calculatePlayerStats } from '../utils/helpers';
 import { loadMatchHistory, saveMatchHistory, loadTeamDisplayNames, saveTeamDisplayNames } from '../utils/storage';
 
@@ -20,7 +20,7 @@ const getDefaultFundamentals = (): PlayerFundamentals => ({
 });
 
 const calculateTeamFundamentals = (players: Player[]): PlayerFundamentals => {
-  const teamFundamentals: PlayerFundamentals = { serve: 1, passing: 1, setting: 1, attacking: 1, blocking: 1 };
+  const teamFundamentals: PlayerFundamentals = { serve: 0, passing: 0, setting: 0, attacking: 0, blocking: 0 };
   players.forEach(player => {
     const pFunds = player.fundamentals ?? getDefaultFundamentals();
     for (const key in pFunds) {
@@ -68,8 +68,9 @@ interface GameState {
   showCourtView: boolean;
   leftoverPlayerIds: string[];
   playersWhoJustEnteredIds: Set<string>;
-  playerPairings: PlayerPairing[]; // Now an array
+  playerPairings: PlayerPairing[]; 
   teamDisplayNames: [string, string];
+  currentMatchSubstitutions: MatchSubstitution[];
 
   // Actions
   setTeamSize: (size: TeamSize) => void;
@@ -82,18 +83,16 @@ interface GameState {
   addPlayerPairing: () => void;
   updatePlayerPairing: (id: string, updates: Partial<Omit<PlayerPairing, 'id'>>) => void;
   removePlayerPairing: (id: string) => void;
-  // --- MODIFICATION START ---
-  // Added clearPlayerPairings to the interface to satisfy TypeScript
   clearPlayerPairings: () => void;
-  // --- MODIFICATION END ---
+  
   addMatch: (match: Match) => void;
-
   deleteAllMatches: () => void;
   loadMatchHistory: () => Promise<void>;
   drawTeams: (sessionPlayers: Player[]) => void;
   endMatchAndSubstitute: (scores: [number, number]) => void;
   deleteMatch: (matchId: string) => void;
   deleteMatchesByDate: (dateTitle: string) => void;
+  swapPlayers: (teamAIndex: number, playerAId: string, teamBIndex: number, playerBId: string, isMatchStarted?: boolean) => void;
 }
 
 export const useGameStore = create<GameState>()(
@@ -107,8 +106,9 @@ export const useGameStore = create<GameState>()(
     showCourtView: true,
     leftoverPlayerIds: [],
     playersWhoJustEnteredIds: new Set(),
-    playerPairings: [], // Initialize as an empty array
+    playerPairings: [], 
     teamDisplayNames: ['Time 1', 'Time 2'],
+    currentMatchSubstitutions: [],
 
     setTeamSize: (size) => set({ teamSize: size }),
     setWinnerIndex: (index) => set({ winnerIndex: index }),
@@ -144,10 +144,7 @@ export const useGameStore = create<GameState>()(
     removePlayerPairing: (id) => set(state => ({
         playerPairings: state.playerPairings.filter(p => p.id !== id)
     })),
-    // --- MODIFICATION START ---
-    // Implemented the function to clear the player pairings array
     clearPlayerPairings: () => set({ playerPairings: [] }),
-    // --- MODIFICATION END ---
 
     addMatch: (match) => set((state) => ({ matchHistory: [match, ...state.matchHistory] })),
     deleteAllMatches: () => set({ matchHistory: [] }),
@@ -173,36 +170,29 @@ export const useGameStore = create<GameState>()(
     drawTeams: (sessionPlayers) => {
       const { teamSize, balanceMode, matchHistory, playerPairings } = get();
 
-      // --- MODIFICATION START ---
       // Determine the effective balance mode. If there are pairing rules, we MUST use fundamentals.
       const validPairings = playerPairings.filter(p => p.player1Id && p.player2Id);
       const effectiveBalanceMode = validPairings.length > 0 ? 'fundamentals' : balanceMode;
-      // --- MODIFICATION END ---
       
       const activePlayers = sessionPlayers.filter(p => p.active);
 
       if (activePlayers.length < 2) {
-        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
+        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id), currentMatchSubstitutions: [] });
         return;
       }
       
-      const numPlayersToDraw = Math.floor(activePlayers.length / teamSize) * teamSize;
-      const playersForTeams = shuffleArray(activePlayers).slice(0, numPlayersToDraw);
+      const numTeams = 2;
+      const maxCourtPlayers = teamSize * numTeams;
+      const numPlayersToDraw = Math.min(activePlayers.length, maxCourtPlayers);
+      const shuffledActive = shuffleArray(activePlayers);
+      const playersForTeams = shuffledActive.slice(0, numPlayersToDraw);
       const drawnPlayerIds = new Set(playersForTeams.map(p => p.id));
       const leftoverPlayers = sessionPlayers.filter(p => !drawnPlayerIds.has(p.id));
-      const numTeams = Math.floor(playersForTeams.length / teamSize);
-
-      if (numTeams < 2) {
-        set({ teams: [], leftoverPlayerIds: sessionPlayers.map(p => p.id) });
-        return;
-      }
 
       let finalTeams: Team[] = [];
 
-      // --- MODIFICATION START ---
       // The logic is now primarily based on the effectiveBalanceMode
       if (effectiveBalanceMode === 'level' || effectiveBalanceMode === 'winrate') {
-      // --- MODIFICATION END ---
         let sortedPlayers;
         if (effectiveBalanceMode === 'winrate') {
           sortedPlayers = [...playersForTeams].sort((a, b) => (calculatePlayerStats(b.id, matchHistory).winRate ?? 50) - (calculatePlayerStats(a.id, matchHistory).winRate ?? 50));
@@ -229,7 +219,6 @@ export const useGameStore = create<GameState>()(
           bestCombination[i % numTeams].push(player);
         });
 
-        // --- MODIFICATION START ---
         // 2. Pre-process the combination to satisfy all pairing rules BEFORE balancing
         if (validPairings.length > 0) {
             const maxCorrectionAttempts = 50; // Avoid infinite loops
@@ -271,7 +260,6 @@ export const useGameStore = create<GameState>()(
                 if (violations === 0) break; // Exit if all rules are satisfied
             }
         }
-        // --- MODIFICATION END ---
 
         let bestImbalance = calculateTotalImbalance(bestCombination.map(p => ({ players: p })));
 
@@ -328,11 +316,12 @@ export const useGameStore = create<GameState>()(
         winnerIndex: null,
         displayedBalanceMode: effectiveBalanceMode, // Display the mode that was actually used
         leftoverPlayerIds: leftoverPlayers.map(p => p.id),
+        currentMatchSubstitutions: [],
       });
     },
 
     endMatchAndSubstitute: (scores) => {
-        const { teams, winnerIndex, leftoverPlayerIds, playersWhoJustEnteredIds, addMatch } = get();
+        const { teams, winnerIndex, leftoverPlayerIds, playersWhoJustEnteredIds, currentMatchSubstitutions, addMatch, teamDisplayNames } = get();
         const { substitutePlayers } = usePlayersStore.getState();
   
         if (winnerIndex === null) return;
@@ -343,12 +332,13 @@ export const useGameStore = create<GameState>()(
           teams: teams,
           winnerTeamIndex: winnerIndex,
           scores: scores,
-          teamNames: get().teamDisplayNames,
+          teamNames: teamDisplayNames,
+          substitutions: [...currentMatchSubstitutions],
         });
   
         const playersToEnterIds = leftoverPlayerIds;
         if (playersToEnterIds.length === 0) {
-          set({ teams: [], winnerIndex: null, playersWhoJustEnteredIds: new Set() });
+          set({ teams: [], winnerIndex: null, playersWhoJustEnteredIds: new Set(), currentMatchSubstitutions: [] });
           return;
         }
   
@@ -357,31 +347,128 @@ export const useGameStore = create<GameState>()(
           .map(p => p.id)
           .filter(id => !playersWhoJustEnteredIds.has(id));
   
-        if (eligibleToLeaveIds.length < playersToEnterIds.length) {
-          Alert.alert("Não é possível substituir", "O time perdedor não tem jogadores suficientes que possam sair.");
-          set({ teams: [], winnerIndex: null, playersWhoJustEnteredIds: new Set() });
-          return;
-        }
+        // Only substitute as many as can leave or want to enter, whichever is smaller
+        const numberOfSubstitutions = Math.min(eligibleToLeaveIds.length, playersToEnterIds.length);
         
-        const playersToLeaveIds = shuffleArray(eligibleToLeaveIds).slice(0, playersToEnterIds.length);
+        // Pick random eligible losers to leave
+        const playersToLeaveIds = shuffleArray(eligibleToLeaveIds).slice(0, numberOfSubstitutions);
+        // Take the first N reserves from the queue
+        const playersToEnterSliced = playersToEnterIds.slice(0, numberOfSubstitutions);
+        const playersStayingInQueue = playersToEnterIds.slice(numberOfSubstitutions);
   
-        substitutePlayers(playersToLeaveIds, playersToEnterIds);
+        substitutePlayers(playersToLeaveIds, playersToEnterSliced);
   
         set({
-          leftoverPlayerIds: playersToLeaveIds,
-          playersWhoJustEnteredIds: new Set(playersToEnterIds),
+          leftoverPlayerIds: [...playersStayingInQueue, ...playersToLeaveIds], // those who didn't enter stay in front, losers go to back
+          playersWhoJustEnteredIds: new Set(playersToEnterSliced),
           teams: [],
           winnerIndex: null,
+          currentMatchSubstitutions: [],
         });
+    },
+
+    swapPlayers: (teamAIndex, playerAId, teamBIndex, playerBId, isMatchStarted = false) => {
+      set((state) => {
+        if (teamAIndex === teamBIndex && playerAId === playerBId) return state;
+
+        const newTeams = state.teams.map(team => ({
+          ...team,
+          players: [...team.players]
+        }));
+        
+        const newLeftovers = [...state.leftoverPlayerIds];
+        const newSubstitutions = [...state.currentMatchSubstitutions];
+
+        const isTeamAQuadra = teamAIndex >= 0;
+        const isTeamBQuadra = teamBIndex >= 0;
+
+        // Get Player A
+        const pAIndex = isTeamAQuadra 
+          ? newTeams[teamAIndex].players.findIndex(p => p.id === playerAId)
+          : newLeftovers.findIndex(id => id === playerAId);
+
+        // Get Player B
+        const pBIndex = isTeamBQuadra 
+          ? newTeams[teamBIndex].players.findIndex(p => p.id === playerBId)
+          : newLeftovers.findIndex(id => id === playerBId);
+
+        if (pAIndex === -1 || pBIndex === -1) return state;
+
+        // Extract Player objects
+        // For leftovers, we only have ID, so we need to find the full player object from session context or usePlayersStore
+        // The most robust way is to pull from usePlayersStore directly since we have the ID.
+        let playerA: Player;
+        if (isTeamAQuadra) {
+          playerA = newTeams[teamAIndex].players[pAIndex];
+        } else {
+          playerA = usePlayersStore.getState().allPlayers.find(p => p.id === playerAId)!;
+        }
+
+        let playerB: Player;
+        if (isTeamBQuadra) {
+          playerB = newTeams[teamBIndex].players[pBIndex];
+        } else {
+          playerB = usePlayersStore.getState().allPlayers.find(p => p.id === playerBId)!;
+        }
+
+        if (!playerA || !playerB) return state;
+
+        // Perform the swap
+        if (isTeamAQuadra) {
+          newTeams[teamAIndex].players[pAIndex] = playerB;
+        } else {
+          newLeftovers[pAIndex] = playerBId;
+        }
+
+        if (isTeamBQuadra) {
+          newTeams[teamBIndex].players[pBIndex] = playerA;
+        } else {
+          newLeftovers[pBIndex] = playerAId;
+        }
+
+        // Record Substitution if match started
+        if (isMatchStarted && teamAIndex !== teamBIndex) {
+          if (isTeamAQuadra) {
+            newSubstitutions.push({ teamIndex: teamAIndex, playerInId: playerBId, playerOutId: playerAId });
+          }
+          if (isTeamBQuadra) {
+            newSubstitutions.push({ teamIndex: teamBIndex, playerInId: playerAId, playerOutId: playerBId });
+          }
+        }
+
+        // Recalculate stats for affected teams
+        const updateTeamStats = (team: Team) => {
+          const fundamentals = calculateTeamFundamentals(team.players);
+          const total = state.displayedBalanceMode === 'winrate'
+            ? team.players.reduce((sum, p) => sum + (calculatePlayerStats(p.id, state.matchHistory).winRate ?? 50), 0)
+            : state.displayedBalanceMode === 'level'
+              ? team.players.reduce((sum, p) => sum + p.weight, 0)
+              : Object.values(fundamentals).reduce((sum, val) => sum + val, 0);
+          return { ...team, fundamentals, total };
+        };
+
+        if (isTeamAQuadra) newTeams[teamAIndex] = updateTeamStats(newTeams[teamAIndex]);
+        if (isTeamBQuadra && teamAIndex !== teamBIndex) newTeams[teamBIndex] = updateTeamStats(newTeams[teamBIndex]);
+
+        return { 
+          teams: newTeams, 
+          leftoverPlayerIds: newLeftovers,
+          currentMatchSubstitutions: newSubstitutions
+        };
+      });
     },
   }))
 );
 
+let saveHistoryTimeout: ReturnType<typeof setTimeout> | null = null;
 useGameStore.subscribe(
   (state) => state.matchHistory,
   (matchHistory) => {
     if (!usePlayersStore.getState().isLoading) {
-      saveMatchHistory(matchHistory);
+      if (saveHistoryTimeout) clearTimeout(saveHistoryTimeout);
+      saveHistoryTimeout = setTimeout(() => {
+        saveMatchHistory(matchHistory);
+      }, 300);
     }
   }
 );

@@ -33,6 +33,12 @@ export type Screen = 'edit' | 'draw' | 'players' | 'settings' | 'history';
 
 export type TeamSize = number;
 
+export type MatchSubstitution = {
+  teamIndex: number;
+  playerInId: string;
+  playerOutId: string;
+};
+
 export type Match = {
   id: string;
   date: string;
@@ -40,6 +46,7 @@ export type Match = {
   winnerTeamIndex: number;
   scores: [number, number];
   teamNames?: [string, string];
+  substitutions?: MatchSubstitution[];
 };
 
 export type SortMode = 'alphabetical' | 'level' | 'winrate' | 'session';

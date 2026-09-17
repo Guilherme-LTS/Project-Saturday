@@ -1,7 +1,5 @@
-// components/PlayerAvatar.tsx
-
-import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, Platform, StyleSheet, View } from 'react-native';
 
 // Importe o seu ícone SVG
 import UserIcon from '../assets/icons/user.svg';
@@ -14,9 +12,11 @@ interface PlayerAvatarProps {
 }
 
 const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ player, size, theme }) => {
-    if (!player) return null; // Retorna nulo se não houver jogador
+  const [imageError, setImageError] = useState(false);
+  if (!player) return null;
 
-  const hasPhoto = !!player.photoUri;
+  const isWebFileUri = Platform.OS === 'web' && !!player.photoUri?.startsWith('file://');
+  const hasPhoto = !!player.photoUri && !isWebFileUri && !imageError;
 
   const avatarStyle = {
     width: size,
@@ -25,10 +25,11 @@ const PlayerAvatar: React.FC<PlayerAvatarProps> = ({ player, size, theme }) => {
   };
 
   if (hasPhoto) {
-      return (
-          <Image
-              source={{ uri: player.photoUri }}
-              style={[avatarStyle, styles.image, { borderColor: theme.textBlack }]}
+    return (
+      <Image
+        source={{ uri: player.photoUri }}
+        style={[avatarStyle, styles.image, { borderColor: theme.textBlack }]}
+        onError={() => setImageError(true)}
       />
     );
   }
