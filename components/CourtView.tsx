@@ -1,7 +1,7 @@
 // components/CourtView.tsx (versão com fade-in na borda de vitória)
 
-import React, { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
 import FireIcon from '../assets/icons/fire.svg';
@@ -10,6 +10,11 @@ import { Match, Team } from '../types';
 import { getCurrentWinStreak } from '../utils/helpers';
 import PlayerAvatar from './PlayerAvatar';
 import DraggablePlayer from './DraggablePlayer';
+import NetOverlay from './NetOverlay';
+
+const NET_HEIGHT = 30;
+const NET_VERTICAL_OFFSET = 0;
+const NET_TOP_OVERHANG_RATIO = 0.045;
 
 interface CourtViewProps {
   teams: Team[];
@@ -36,6 +41,34 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
   // Valores animados para a opacidade das bordas
   const team1BorderOpacity = useRef(new Animated.Value(0)).current;
   const team2BorderOpacity = useRef(new Animated.Value(0)).current;
+  const [playingSurfaceLayout, setPlayingSurfaceLayout] = useState({
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 0,
+  });
+  const netTopOverhang = playingSurfaceLayout.width * NET_TOP_OVERHANG_RATIO;
+
+  // The net only knows its real size once `onLayout` measures the
+  // playing surface, so on mount there's necessarily a frame or two
+  // with no net rendered at all. Rather than letting it snap into
+  // existence the instant that measurement lands (which reads as an
+  // abrupt "pop"), fade it in smoothly. The `hasMeasured` ref makes
+  // sure this only fires once per mount, not on every subsequent
+  // layout change (e.g. rotation).
+  const netOpacity = useRef(new Animated.Value(0)).current;
+  const hasMeasuredNet = useRef(false);
+
+  useEffect(() => {
+    if (playingSurfaceLayout.width > 0 && !hasMeasuredNet.current) {
+      hasMeasuredNet.current = true;
+      Animated.timing(netOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [playingSurfaceLayout.width, netOpacity]);
 
   useEffect(() => {
     if (winnerIndex === 0) {
@@ -89,7 +122,10 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
         </GestureDetector>
       </View>
 
-      <View style={styles.playingSurface}>
+      <View
+        style={styles.playingSurface}
+        onLayout={event => setPlayingSurfaceLayout(event.nativeEvent.layout)}
+      >
         <View style={styles.teamHalf}>
           <GestureDetector gesture={tapTeam1}>
             <View style={StyleSheet.absoluteFill} />
@@ -146,14 +182,28 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
         </View>
       </View>
 
-      <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} pointerEvents="none">
+      <View style={styles.fullCourtDividerOverlay} pointerEvents="none">
         <View style={styles.divider} pointerEvents="none" />
-        <Image
-          pointerEvents="none"
-          source={require('../assets/images/net.png')}
-          style={styles.netImage}
-          resizeMode="stretch"
-        />
+        {playingSurfaceLayout.width > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.netContainer,
+              {
+                left: playingSurfaceLayout.x - netTopOverhang,
+                top: playingSurfaceLayout.y + playingSurfaceLayout.height / 2,
+                width: playingSurfaceLayout.width + netTopOverhang * 2,
+                opacity: netOpacity,
+              },
+            ]}
+          >
+            <NetOverlay
+              width={playingSurfaceLayout.width}
+              height={NET_HEIGHT}
+              topOverhang={netTopOverhang}
+            />
+          </Animated.View>
+        )}
       </View>
 
       <View style={styles.overlayContainer} pointerEvents="none">
@@ -226,11 +276,15 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: '50%',
-    transform: [{ translateY: 28.5 }],
+    transform: [{ translateY: -1.5 }],
   },
   overlayContainer: {
     ...StyleSheet.absoluteFill as any,
     zIndex: 3,
+  },
+  fullCourtDividerOverlay: {
+    ...StyleSheet.absoluteFill as any,
+    zIndex: 1,
   },
   clickArea: {
     position: 'absolute',
@@ -263,17 +317,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     zIndex: 6,
   },
-  netImage: {
+  netContainer: {
     position: 'absolute',
-    height: '92%',
-    width: '100%',
-    left: '50%',
-    top: 0,
-    transform: [
-      { translateX: '-45.58%' },
-      { translateY: 45 },
-      { rotate: '-90deg' }
-    ],
+    transform: [{ translateY: -NET_HEIGHT + NET_VERTICAL_OFFSET }],
+    zIndex: 2,
   },
 });
 
