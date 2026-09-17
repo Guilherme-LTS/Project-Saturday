@@ -118,7 +118,8 @@ export default function DrawScreen() {
   
   const handleSelectWinner = (index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setWinnerIndex(index === winnerIndex ? null : index);
+    const currentWinnerIndex = useGameStore.getState().winnerIndex;
+    setWinnerIndex(index === currentWinnerIndex ? null : index);
   };
 
   const handleSelectBalanceMode = (mode: 'level' | 'winrate' | 'fundamentals') => {

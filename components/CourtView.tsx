@@ -90,9 +90,11 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
       </View>
 
       <View style={styles.playingSurface}>
-        <GestureDetector gesture={tapTeam1}>
-          <View style={styles.teamHalf}>
-            {team1.map(player => {
+        <View style={styles.teamHalf}>
+          <GestureDetector gesture={tapTeam1}>
+            <View style={StyleSheet.absoluteFill} />
+          </GestureDetector>
+          {team1.map(player => {
             const streak = getCurrentWinStreak(player.id, matchHistory);
             return (
               <DraggablePlayer 
@@ -114,11 +116,12 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
               </DraggablePlayer>
             );
           })}
-          </View>
-        </GestureDetector>
-        <GestureDetector gesture={tapTeam2}>
-          <View style={styles.teamHalf}>
-            {team2.map(player => {
+        </View>
+        <View style={styles.teamHalf}>
+          <GestureDetector gesture={tapTeam2}>
+            <View style={StyleSheet.absoluteFill} />
+          </GestureDetector>
+          {team2.map(player => {
             const streak = getCurrentWinStreak(player.id, matchHistory);
             return (
               <DraggablePlayer 
@@ -140,20 +143,22 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
               </DraggablePlayer>
             );
           })}
-          </View>
-        </GestureDetector>
+        </View>
       </View>
 
-      <View style={styles.divider} pointerEvents="none" />
-      <Image
-        source={require('../assets/images/net.png')}
-        style={styles.netImage}
-        resizeMode="stretch"
-        pointerEvents="none"
-      />
+      <View style={[StyleSheet.absoluteFill, { zIndex: 2 }]} pointerEvents="none">
+        <View style={styles.divider} pointerEvents="none" />
+        <Image
+          pointerEvents="none"
+          source={require('../assets/images/net.png')}
+          style={styles.netImage}
+          resizeMode="stretch"
+        />
+      </View>
 
       <View style={styles.overlayContainer} pointerEvents="none">
         <Animated.View
+          pointerEvents="none"
           style={[
             styles.clickArea,
             {
@@ -169,6 +174,7 @@ const CourtView: React.FC<CourtViewProps> = ({ teams, darkMode, winnerIndex, onS
         />
 
         <Animated.View
+          pointerEvents="none"
           style={[
             styles.clickArea,
             {
@@ -221,7 +227,6 @@ const styles = StyleSheet.create({
     right: 0,
     top: '50%',
     transform: [{ translateY: 28.5 }],
-    zIndex: 2,
   },
   overlayContainer: {
     ...StyleSheet.absoluteFill as any,
@@ -269,7 +274,6 @@ const styles = StyleSheet.create({
       { translateY: 45 },
       { rotate: '-90deg' }
     ],
-    zIndex: 2,
   },
 });
 
