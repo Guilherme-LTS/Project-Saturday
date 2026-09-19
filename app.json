@@ -32,18 +32,6 @@
     "plugins": [
       "expo-font",
       "expo-splash-screen"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "a49be8ec-9986-4462-97cf-c5c2514c5f28"
-      }
-    },
-    "owner": "guilherme.lts",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/a49be8ec-9986-4462-97cf-c5c2514c5f28"
-    }
+    ]
   }
 }
