@@ -81,7 +81,7 @@ export const calculateWinProbability = (
   }
 
   // Calculate advantage scores (-1 to 1, where positive favors team1)
-  const levelAdvantage = calculateAdvantage(stats1.averageLevel, stats2.averageLevel, 2); // Max expected difference of 2 levels (weight 1 to 3)
+  const levelAdvantage = calculateAdvantage(stats1.averageLevel, stats2.averageLevel, 4); // Max expected difference of 4 levels (weight 1 to 5)
   const winRateAdvantage = calculateAdvantage(stats1.averageWinRate, stats2.averageWinRate, 100); // Max difference of 100%
   const maxPlayerCount = Math.max(stats1.playerCount, stats2.playerCount);
   const fundamentalsAdvantage = calculateAdvantage(stats1.totalFundamentals, stats2.totalFundamentals, maxPlayerCount * (RATING_MAX * 5)); // Max expected difference
